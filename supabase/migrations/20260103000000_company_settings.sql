@@ -45,3 +45,7 @@ CREATE POLICY "Users can update company settings"
 CREATE TRIGGER update_company_settings_updated_at
   BEFORE UPDATE ON company_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER set_company_settings_company_id
+  BEFORE INSERT ON company_settings
+  FOR EACH ROW EXECUTE FUNCTION set_company_id();
