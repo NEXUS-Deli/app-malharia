@@ -58,7 +58,8 @@ export const companyService = {
 
   async removeLogo(logoUrl) {
     if (!logoUrl) return
-    const path = logoUrl.split('/').pop()
+    const url = new URL(logoUrl)
+    const path = url.pathname.split('/').pop()
     if (!path) return
     const { error } = await supabase.storage.from('logos').remove([path])
     if (error && error.statusCode !== '404' && !error.message?.includes('not found')) {
