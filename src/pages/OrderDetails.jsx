@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle, Printer } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
@@ -110,19 +110,24 @@ export function OrderDetails() {
             <p className="text-sm text-text-muted mt-1">Criada em {formatDate(order.created_at)}</p>
           </div>
         </div>
-        {order.status !== 'finalizada' && order.status !== 'cancelada' && order.status !== 'entregue' && (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={handleAdvance}>
-              Avançar Fase
-            </Button>
-            <Button onClick={handleFinish}>
-              <CheckCircle size={16} /> Finalizar
-            </Button>
-            <Button variant="destructive" onClick={handleCancel}>
-              <XCircle size={16} /> Cancelar
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => navigate(`/orders/${order.id}/print`)}>
+            <Printer size={16} /> Imprimir OS
+          </Button>
+          {order.status !== 'finalizada' && order.status !== 'cancelada' && order.status !== 'entregue' && (
+            <>
+              <Button variant="outline" onClick={handleAdvance}>
+                Avancar Fase
+              </Button>
+              <Button onClick={handleFinish}>
+                <CheckCircle size={16} /> Finalizar
+              </Button>
+              <Button variant="destructive" onClick={handleCancel}>
+                <XCircle size={16} /> Cancelar
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">

@@ -20,14 +20,14 @@ export const ordersService = {
   async getById(id) {
     const { data, error } = await supabase
       .from('production_orders')
-      .select('*, clients(*), products(*), production_order_stages(*, production_stages(*))')
+      .select('*, clients(*), products(*), production_order_stages(*, production_stages(*)), order_items(*)')
       .eq('id', id)
       .single()
     if (error) throw error
     return data
   },
 
-  async create(order) {
+  async create(order, items = []) {
     const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('production_orders')
@@ -37,6 +37,27 @@ export const ordersService = {
     if (error) throw error
 
     await ordersService.createStages(data.id)
+
+    if (items.length > 0) {
+      const orderItems = items
+        .filter(i => i.model)
+        .map(i => ({
+          order_id: data.id,
+          model: i.model,
+          custom_name: i.custom_name || null,
+          size: i.size || null,
+          quantity: Number(i.quantity) || 1,
+          unit_price: Number(i.unit_price) || 0,
+          total_price: (Number(i.quantity) || 0) * (Number(i.unit_price) || 0),
+        }))
+      if (orderItems.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems)
+        if (itemsError) throw itemsError
+      }
+    }
+
     return data
   },
 

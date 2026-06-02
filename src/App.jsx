@@ -7,6 +7,7 @@ import { Products } from './pages/Products'
 import { Orders } from './pages/Orders'
 import { OrderForm } from './pages/OrderForm'
 import { OrderDetails } from './pages/OrderDetails'
+import PrintOS from './pages/PrintOS'
 import { Kanban } from './pages/Kanban'
 import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
@@ -16,6 +17,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/orders/:id/print" element={<PrintOS />} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />

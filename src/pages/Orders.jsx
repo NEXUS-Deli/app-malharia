@@ -103,7 +103,7 @@ export function Orders() {
                 <tbody className="divide-y divide-border-light">
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-text-primary">#{order.order_number}</td>
+                      <td className="py-3 px-4 font-medium text-text-primary">{order.order_number}</td>
                       <td className="py-3 px-4 text-text-secondary">{order.clients?.name || '—'}</td>
                       <td className="py-3 px-4 text-text-secondary">{order.products?.name || '—'}</td>
                       <td className="py-3 px-4 text-text-secondary">{order.quantity}</td>
