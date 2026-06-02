@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase'
 
+const LOGO_PATH = 'logo-empresa'
+
 export const companyService = {
   async getSettings() {
     const { data, error } = await supabase
@@ -37,11 +39,14 @@ export const companyService = {
 
   async uploadLogo(file) {
     const ext = file.name.split('.').pop()
-    const filePath = `logo-${Date.now()}.${ext}`
+    const filePath = `${LOGO_PATH}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('logos')
-      .upload(filePath, file, { upsert: true })
+      .upload(filePath, file, {
+        upsert: true,
+        contentType: file.type,
+      })
     if (uploadError) throw uploadError
 
     const { data: { publicUrl } } = supabase.storage
@@ -51,9 +56,13 @@ export const companyService = {
     return publicUrl
   },
 
-  async removeLogo(filePath) {
-    const path = filePath?.split('/logos/').pop()
+  async removeLogo(logoUrl) {
+    if (!logoUrl) return
+    const path = logoUrl.split('/').pop()
     if (!path) return
-    await supabase.storage.from('logos').remove([path])
+    const { error } = await supabase.storage.from('logos').remove([path])
+    if (error && error.statusCode !== '404' && !error.message?.includes('not found')) {
+      console.error('Erro ao remover logo:', error)
+    }
   },
 }
