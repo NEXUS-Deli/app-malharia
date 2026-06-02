@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Shirt, Eye, EyeOff } from 'lucide-react'
+import { Gem, Eye, EyeOff } from 'lucide-react'
 import { authService } from '../services/auth'
+import { companyService } from '../services/company'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -12,8 +13,21 @@ export function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [companyName, setCompanyName] = useState('')
+  const [companyLogo, setCompanyLogo] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    companyService.getSettings().then(data => {
+      if (data) {
+        setCompanyName(data.trade_name || data.company_name || 'ConfecOS')
+        setCompanyLogo(data.logo_url || '')
+      }
+    }).catch(() => {
+      setCompanyName('ConfecOS')
+    })
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -40,11 +54,15 @@ export function Login() {
         </div>
         <div className="relative z-10 text-center px-12">
           <div className="flex justify-center mb-8">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-              <Shirt size={40} className="text-white" />
-            </div>
+            {companyLogo ? (
+              <img src={companyLogo} alt={companyName} className="h-20 w-20 object-contain rounded-2xl bg-white/20 backdrop-blur-sm p-2" />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+                <Gem size={40} className="text-white" />
+              </div>
+            )}
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">ConfecOS</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">{companyName}</h1>
           <p className="text-lg text-white/80 max-w-md mx-auto">
             Sistema de Ordem de Serviço para Confecções
           </p>
@@ -62,9 +80,13 @@ export function Login() {
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex justify-center mb-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-              <Shirt size={28} className="text-white" />
-            </div>
+            {companyLogo ? (
+              <img src={companyLogo} alt={companyName} className="h-14 w-14 object-contain rounded-2xl bg-primary p-2" />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+                <Gem size={28} className="text-white" />
+              </div>
+            )}
           </div>
 
           <div className="text-center mb-8">
@@ -119,7 +141,7 @@ export function Login() {
           </form>
 
           <p className="text-xs text-text-muted text-center mt-8">
-            ConfecOS &mdash; Controle de Produção
+            {companyName} &mdash; Controle de Produção
           </p>
         </div>
       </div>

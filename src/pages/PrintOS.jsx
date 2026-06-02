@@ -60,8 +60,12 @@ function PrintOS() {
           body { font-family: 'Inter', Arial, sans-serif; font-size: 10px; line-height: 1.4; color: #000; padding: 15mm 20mm; }
           table { width: 100%; border-collapse: collapse; }
           td, th { padding: 4px 6px; text-align: left; font-size: 10px; }
+          img { max-width: 100%; height: auto; }
+          .h-16 { height: 64px; }
+          .object-contain { object-fit: contain; }
           .border-b { border-bottom: 1px solid #ddd; }
           .border { border: 1px solid #ddd; }
+          .border-t { border-top: 1px solid #ddd; }
           .text-center { text-align: center; }
           .text-right { text-align: right; }
           .font-bold { font-weight: 700; }
@@ -72,10 +76,18 @@ function PrintOS() {
           .bg-gray-50 { background: #f9fafb; }
           .bg-gray-100 { background: #f3f4f6; }
           .text-gray-500 { color: #6b7280; }
+          .text-gray-600 { color: #4b5563; }
+          .text-gray-700 { color: #374151; }
+          .text-gray-900 { color: #111827; }
+          .text-green-600 { color: #16a34a; }
+          .text-blue-600 { color: #2563eb; }
+          .text-red-600 { color: #dc2626; }
           .mb-1 { margin-bottom: 4px; }
           .mb-2 { margin-bottom: 8px; }
           .mb-4 { margin-bottom: 16px; }
+          .mb-6 { margin-bottom: 24px; }
           .mb-8 { margin-bottom: 32px; }
+          .mt-1 { margin-top: 4px; }
           .mt-2 { margin-top: 8px; }
           .mt-4 { margin-top: 16px; }
           .mt-6 { margin-top: 24px; }
@@ -83,17 +95,25 @@ function PrintOS() {
           .p-2 { padding: 8px; }
           .p-3 { padding: 12px; }
           .p-4 { padding: 16px; }
+          .pt-2 { padding-top: 8px; }
+          .pr-3 { padding-right: 12px; }
           .flex { display: flex; }
+          .items-start { align-items: flex-start; }
           .items-center { align-items: center; }
           .justify-between { justify-content: space-between; }
           .gap-2 { gap: 8px; }
+          .gap-3 { gap: 12px; }
           .gap-4 { gap: 16px; }
+          .gap-6 { gap: 24px; }
           .gap-8 { gap: 32px; }
           .w-1\\/2 { width: 50%; }
           .w-1\\/3 { width: 33.333%; }
           .w-2\\/3 { width: 66.666%; }
           .leading-relaxed { line-height: 1.6; }
           .rounded { border-radius: 4px; }
+          .whitespace-nowrap { white-space: nowrap; }
+          .uppercase { text-transform: uppercase; }
+          .tracking-wider { letter-spacing: 0.05em; }
           [data-print-only] { display: block; }
           .checklist input { display: inline-block; width: 12px; height: 12px; border: 1px solid #999; margin-right: 6px; }
           .page-break { page-break-after: always; }
@@ -102,7 +122,26 @@ function PrintOS() {
       </head>
       <body>
         ${content}
-        <script>window.print();window.close();<\/script>
+        <script>
+          var imgs = document.images;
+          var len = imgs.length;
+          var loaded = 0;
+          if (len === 0) { window.print(); window.close(); }
+          for (var i = 0; i < len; i++) {
+            imgs[i].onload = function() {
+              loaded++;
+              if (loaded >= len) { window.print(); window.close(); }
+            };
+            imgs[i].onerror = function() {
+              loaded++;
+              if (loaded >= len) { window.print(); window.close(); }
+            };
+            if (imgs[i].complete) {
+              loaded++;
+              if (loaded >= len) { window.print(); window.close(); }
+            }
+          }
+        <\/script>
       </body>
       </html>
     `)
