@@ -4,12 +4,17 @@ export const dashboardService = {
   async getMetrics() {
     const now = new Date().toISOString()
 
-    const [{ count: openCount }, { count: inProductionCount }, { count: finishedCount }, { count: delayedCount }] = await Promise.all([
+    const [{ count: openCount }, { count: inProductionCount }, { count: finishedCount }] = await Promise.all([
       supabase.from('production_orders').select('*', { count: 'exact', head: true }).eq('status', 'aberta'),
       supabase.from('production_orders').select('*', { count: 'exact', head: true }).eq('status', 'em_producao'),
       supabase.from('production_orders').select('*', { count: 'exact', head: true }).in('status', ['finalizada', 'entregue']),
-      supabase.from('production_orders').select('*', { count: 'exact', head: true }).lt('delivery_date', now).not('status', 'in', ['finalizada', 'entregue', 'cancelada']),
     ])
+
+    const { count: delayedCount } = await supabase
+      .from('production_orders')
+      .select('*', { count: 'exact', head: true })
+      .lt('delivery_date', now)
+      .filter('status', 'not.in', '(finalizada,entregue,cancelada)')
 
     const { data: monthOrders } = await supabase
       .from('production_orders')
@@ -68,7 +73,7 @@ export const dashboardService = {
       .select('*, clients(name), products(name)')
       .gte('delivery_date', now)
       .lte('delivery_date', threeDaysLater)
-      .not('status', 'in', ['finalizada', 'entregue', 'cancelada'])
+      .filter('status', 'not.in', '(finalizada,entregue,cancelada)')
       .order('delivery_date', { ascending: true })
       .limit(limit)
     if (error) throw error
@@ -82,7 +87,7 @@ export const dashboardService = {
       .from('production_orders')
       .select('*, clients(name), products(name)')
       .lt('delivery_date', now)
-      .not('status', 'in', ['finalizada', 'entregue', 'cancelada'])
+      .filter('status', 'not.in', '(finalizada,entregue,cancelada)')
       .order('delivery_date', { ascending: true })
       .limit(limit)
     if (error) throw error
