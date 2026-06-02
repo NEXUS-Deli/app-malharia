@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Upload, Trash2, Save, Building2, Image as ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -14,6 +14,32 @@ const states = [
   'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
   'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]
+
+function Field({ label, value, onChange, placeholder, type, required }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}{required && ' *'}</Label>
+      {type === 'select' ? (
+        <select
+          className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          value={value || ''}
+          onChange={onChange}
+        >
+          <option value="">Selecione</option>
+          {states.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ) : (
+        <Input
+          type={type || 'text'}
+          value={value || ''}
+          onChange={onChange}
+          placeholder={placeholder}
+          required={required}
+        />
+      )}
+    </div>
+  )
+}
 
 export function CompanySettings() {
   const navigate = useNavigate()
@@ -45,8 +71,8 @@ export function CompanySettings() {
   useEffect(() => {
     const load = async () => {
       try {
-        const settings = await companyService.getSettings()
-        if (settings) setForm(settings)
+        const data = await companyService.getSettings()
+        if (data) setForm(prev => ({ ...prev, ...data }))
       } catch (err) {
         console.error(err)
       } finally {
@@ -54,6 +80,10 @@ export function CompanySettings() {
       }
     }
     load()
+  }, [])
+
+  const setter = useCallback((field) => (e) => {
+    setForm(prev => ({ ...prev, [field]: e.target.value }))
   }, [])
 
   const handleLogoUpload = async (e) => {
@@ -64,7 +94,6 @@ export function CompanySettings() {
       toast.error('Logo deve ter no máximo 5MB')
       return
     }
-
     if (!['image/png', 'image/jpeg', 'image/svg+xml'].includes(file.type)) {
       toast.error('Formatos permitidos: PNG, JPG, SVG')
       return
@@ -75,18 +104,23 @@ export function CompanySettings() {
       if (form.logo_url) await companyService.removeLogo(form.logo_url)
       const url = await companyService.uploadLogo(file)
       setForm(prev => ({ ...prev, logo_url: url }))
-      toast.success('Logo enviada!')
+      toast.success('Logo enviada com sucesso!')
     } catch (err) {
-      toast.error(`Erro ao enviar: ${err.message}`)
+      toast.error(`Erro ao enviar logo: ${err.message}`)
     } finally {
       setUploading(false)
+      e.target.value = ''
     }
   }
 
   const handleRemoveLogo = async () => {
-    if (form.logo_url) await companyService.removeLogo(form.logo_url)
-    setForm(prev => ({ ...prev, logo_url: '' }))
-    toast.success('Logo removida')
+    try {
+      if (form.logo_url) await companyService.removeLogo(form.logo_url)
+      setForm(prev => ({ ...prev, logo_url: '' }))
+      toast.success('Logo removida')
+    } catch (err) {
+      toast.error(`Erro ao remover: ${err.message}`)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -94,7 +128,7 @@ export function CompanySettings() {
     setSaving(true)
     try {
       await companyService.saveSettings(form)
-      toast.success('Dados da empresa salvos!')
+      toast.success('Dados da empresa salvos com sucesso!')
     } catch (err) {
       toast.error(`Erro ao salvar: ${err.message}`)
     } finally {
@@ -114,19 +148,6 @@ export function CompanySettings() {
       </div>
     )
   }
-
-  const InputField = ({ label, field, placeholder, type = 'text', required, className }) => (
-    <div className={`space-y-1.5 ${className || ''}`}>
-      <Label>{label}{required && ' *'}</Label>
-      <Input
-        type={type}
-        value={form[field] || ''}
-        onChange={e => setForm({ ...form, [field]: e.target.value })}
-        placeholder={placeholder}
-        required={required}
-      />
-    </div>
-  )
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -194,7 +215,7 @@ export function CompanySettings() {
           </CardContent>
         </Card>
 
-        {/* Company Data */}
+        {/* Dados da Empresa */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -204,77 +225,61 @@ export function CompanySettings() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Razão Social" field="company_name" placeholder="Razão social da empresa" required />
-              <InputField label="Nome Fantasia" field="trade_name" placeholder="Nome fantasia" />
-              <InputField label="CNPJ" field="cnpj" placeholder="00.000.000/0001-00" />
-              <InputField label="Inscrição Estadual" field="state_registration" placeholder="Inscrição estadual" />
-              <InputField label="Inscrição Municipal" field="municipal_registration" placeholder="Inscrição municipal" className="md:col-span-2" />
+              <Field label="Razão Social" value={form.company_name} onChange={setter('company_name')} placeholder="Razão social da empresa" required />
+              <Field label="Nome Fantasia" value={form.trade_name} onChange={setter('trade_name')} placeholder="Nome fantasia" />
+              <Field label="CNPJ" value={form.cnpj} onChange={setter('cnpj')} placeholder="00.000.000/0001-00" />
+              <Field label="Inscrição Estadual" value={form.state_registration} onChange={setter('state_registration')} placeholder="Inscrição estadual" />
+              <Field label="Inscrição Municipal" value={form.municipal_registration} onChange={setter('municipal_registration')} placeholder="Inscrição municipal" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Contact */}
+        {/* Contato */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Contato
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2">Contato</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Telefone" field="phone" placeholder="(99) 9999-9999" />
-              <InputField label="WhatsApp" field="whatsapp" placeholder="(99) 99999-9999" />
-              <InputField label="Email" field="email" type="email" placeholder="contato@empresa.com" />
-              <InputField label="Site" field="website" placeholder="https://www.empresa.com" />
+              <Field label="Telefone" value={form.phone} onChange={setter('phone')} placeholder="(99) 9999-9999" />
+              <Field label="WhatsApp" value={form.whatsapp} onChange={setter('whatsapp')} placeholder="(99) 99999-9999" />
+              <Field label="Email" value={form.email} onChange={setter('email')} type="email" placeholder="contato@empresa.com" />
+              <Field label="Site" value={form.website} onChange={setter('website')} placeholder="https://www.empresa.com" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Address */}
+        {/* Endereço */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Endereço
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2">Endereço</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="CEP" field="zip_code" placeholder="00000-000" />
-              <InputField label="Endereço" field="address" placeholder="Rua, Avenida..." />
-              <InputField label="Número" field="number" placeholder="123" />
-              <InputField label="Bairro" field="district" placeholder="Bairro" />
-              <InputField label="Cidade" field="city" placeholder="Cidade" />
-              <div className="space-y-1.5">
-                <Label>Estado</Label>
-                <select
-                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  value={form.state || ''}
-                  onChange={e => setForm({ ...form, state: e.target.value })}
-                >
-                  <option value="">Selecione</option>
-                  {states.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
+              <Field label="CEP" value={form.zip_code} onChange={setter('zip_code')} placeholder="00000-000" />
+              <Field label="Endereço" value={form.address} onChange={setter('address')} placeholder="Rua, Avenida..." />
+              <Field label="Número" value={form.number} onChange={setter('number')} placeholder="123" />
+              <Field label="Bairro" value={form.district} onChange={setter('district')} placeholder="Bairro" />
+              <Field label="Cidade" value={form.city} onChange={setter('city')} placeholder="Cidade" />
+              <Field label="Estado" value={form.state} onChange={setter('state')} type="select" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Responsible */}
+        {/* Responsável */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Responsável
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2">Responsável</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Nome do Responsável" field="responsible_name" placeholder="Nome completo" />
-              <InputField label="Cargo/Função" field="responsible_position" placeholder="Ex: Diretor, Gerente de Produção" />
+              <Field label="Nome" value={form.responsible_name} onChange={setter('responsible_name')} placeholder="Nome completo" />
+              <Field label="Cargo/Função" value={form.responsible_position} onChange={setter('responsible_position')} placeholder="Ex: Diretor, Gerente de Produção" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Notes */}
+        {/* Observações */}
         <Card>
           <CardHeader>
             <CardTitle>Observações</CardTitle>
@@ -282,7 +287,7 @@ export function CompanySettings() {
           <CardContent>
             <Textarea
               value={form.notes || ''}
-              onChange={e => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Informações adicionais..."
               rows={3}
             />
@@ -293,7 +298,7 @@ export function CompanySettings() {
           <Button type="button" variant="outline" onClick={() => navigate('/settings')}>Cancelar</Button>
           <Button type="submit" disabled={saving}>
             <Save size={16} />
-            {saving ? 'Salvando...' : 'Salvar Dados da Empresa'}
+            {saving ? 'Salvando...' : 'Salvar Empresa'}
           </Button>
         </div>
       </form>
