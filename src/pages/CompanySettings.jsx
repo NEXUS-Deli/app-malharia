@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Upload, Trash2, Save, Building2, Image as ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -43,6 +43,7 @@ function Field({ label, value, onChange, placeholder, type, required }) {
 
 export function CompanySettings() {
   const navigate = useNavigate()
+  const fileInputRef = useRef(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -192,18 +193,23 @@ export function CompanySettings() {
                   <p className="text-xs text-text-muted">PNG, JPG ou SVG. Máx 5MB.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <label className="cursor-pointer">
-                    <Button type="button" variant="outline" size="sm" disabled={uploading}>
-                      <Upload size={14} />
-                      {uploading ? 'Enviando...' : form.logo_url ? 'Substituir' : 'Enviar Logo'}
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/svg+xml"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                    />
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload size={14} />
+                    {uploading ? 'Enviando...' : form.logo_url ? 'Substituir' : 'Enviar Logo'}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
                   {form.logo_url && (
                     <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
                       <Trash2 size={14} /> Remover
