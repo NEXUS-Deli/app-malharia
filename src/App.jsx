@@ -8,6 +8,7 @@ import { Orders } from './pages/Orders'
 import { OrderForm } from './pages/OrderForm'
 import { OrderDetails } from './pages/OrderDetails'
 import { Kanban } from './pages/Kanban'
+import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/orders/new" element={<OrderForm />} />
           <Route path="/orders/:id" element={<OrderDetails />} />
           <Route path="/kanban" element={<Kanban />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

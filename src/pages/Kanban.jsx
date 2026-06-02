@@ -1,39 +1,58 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, AlertCircle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
+import { ArrowRight, AlertCircle, Clock, User } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
 import { StatusBadge, PriorityBadge } from '../components/ui/status-badge'
-import { formatDate } from '../lib/utils'
+import { Avatar } from '../components/ui/avatar'
+import { formatDate, getDeadlineStatus, deadlineStyles, deadlineLabels } from '../lib/utils'
 import { productionService } from '../services/production'
 import { ordersService } from '../services/orders'
 
-function KanbanCard({ order, onAdvance }) {
-  const isLate = order.delivery_date && new Date(order.delivery_date) < new Date() && !['finalizada', 'entregue', 'cancelada'].includes(order.status)
+function KanbanCard({ order, onAdvance, isAdvancing }) {
+  const deadline = getDeadlineStatus(order.delivery_date)
 
   return (
-    <div className="rounded-lg border border-border-light bg-card-bg p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rounded-xl border border-border bg-card-bg p-4 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-200 group">
+      <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-bold text-text-primary">#{order.order_number}</span>
         <PriorityBadge priority={order.priority} />
       </div>
-      <p className="text-sm font-medium text-text-primary">{order.clients?.name}</p>
-      <p className="text-xs text-text-muted mt-0.5">{order.products?.name} • {order.quantity} un</p>
-      <div className="flex items-center justify-between mt-3">
-        <div className="flex items-center gap-1">
-          {isLate && <AlertCircle size={14} className="text-danger" />}
-          <span className={`text-xs ${isLate ? 'text-danger font-medium' : 'text-text-muted'}`}>
+
+      <div className="space-y-2 mb-3">
+        <div>
+          <p className="text-xs text-text-muted">Cliente</p>
+          <p className="text-sm font-medium text-text-primary truncate">{order.clients?.name || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-text-muted">Produto</p>
+          <p className="text-sm text-text-secondary truncate">{order.products?.name || '—'} • {order.quantity}un</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-border-light">
+        <div className="flex items-center gap-2">
+          <Avatar name="RS" size="sm" />
+          <span className="text-xs text-text-muted">João</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {deadline !== 'normal' && (
+            <AlertCircle size={12} className={deadlineStyles[deadline]} />
+          )}
+          <span className={`text-xs font-medium ${deadlineStyles[deadline]}`}>
             {formatDate(order.delivery_date)}
           </span>
         </div>
-        {order.status !== 'finalizada' && order.status !== 'entregue' && (
-          <button
-            onClick={() => onAdvance(order.id)}
-            className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors cursor-pointer font-medium"
-          >
-            Avançar <ArrowRight size={14} />
-          </button>
-        )}
       </div>
+
+      {order.status !== 'finalizada' && order.status !== 'entregue' && (
+        <button
+          onClick={() => onAdvance(order.id)}
+          disabled={isAdvancing === order.id}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg border border-border bg-gray-50 px-3 py-2 text-xs font-medium text-text-secondary hover:bg-primary hover:text-white hover:border-primary transition-all duration-200 cursor-pointer disabled:opacity-50"
+        >
+          {isAdvancing === order.id ? 'Avançando...' : 'Avançar Fase'}
+          <ArrowRight size={14} />
+        </button>
+      )}
     </div>
   )
 }
@@ -70,20 +89,15 @@ export function Kanban() {
     }
   }
 
-  const stageColors = {
-    'Desenho': 'border-t-blue-500',
-    'Impressão': 'border-t-purple-500',
-    'Calandra': 'border-t-orange-500',
-    'Corte': 'border-t-yellow-500',
-    'Costura': 'border-t-pink-500',
-    'Acabamento': 'border-t-teal-500',
-    'Finalizado': 'border-t-green-500',
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center">
+          <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
       </div>
     )
   }
@@ -91,32 +105,33 @@ export function Kanban() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Kanban de Produção</h1>
-        <p className="text-sm text-text-muted mt-1">Arraste ou avance as ordens entre as fases</p>
+        <h1 className="text-2xl font-bold text-text-primary">Produção</h1>
+        <p className="text-sm text-text-muted mt-1">Kanban de produção — arraste ou avance as ordens entre as fases</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 lg:-mx-8 px-6 lg:px-8">
         {stages.map(({ stage, orders }) => (
-          <div key={stage.id} className={`rounded-xl border border-border-light bg-gray-50/50 border-t-4 ${stageColors[stage.name] || 'border-t-gray-300'}`}>
-            <div className="p-4 border-b border-border-light">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-text-primary">{stage.name}</h3>
-                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-gray-200 text-xs font-medium text-text-secondary">
-                  {orders.length}
-                </span>
-              </div>
+          <div key={stage.id} className="flex-shrink-0 w-72">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">{stage.name}</h3>
+              <span className="inline-flex items-center justify-center h-7 min-w-[28px] rounded-lg bg-gray-100 px-2 text-xs font-medium text-text-secondary">
+                {orders.length}
+              </span>
             </div>
-            <div className="p-3 space-y-3 min-h-[200px]">
+            <div className="space-y-3 min-h-[300px]">
               {orders.length > 0 ? (
                 orders.map((order) => (
                   <KanbanCard
                     key={order.id}
                     order={order}
                     onAdvance={handleAdvance}
+                    isAdvancing={advancing}
                   />
                 ))
               ) : (
-                <p className="text-xs text-text-muted text-center py-6">Nenhuma OS</p>
+                <div className="flex items-center justify-center h-32 rounded-xl border-2 border-dashed border-border-light">
+                  <p className="text-xs text-text-muted">Nenhuma OS</p>
+                </div>
               )}
             </div>
           </div>

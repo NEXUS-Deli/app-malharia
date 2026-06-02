@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Save, CheckCircle2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { Select } from '../components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
 import { clientsService } from '../services/clients'
 import { productsService } from '../services/products'
 import { ordersService } from '../services/orders'
 
+const defaultStages = ['Desenho', 'Impressão', 'Calandra', 'Corte', 'Costura', 'Acabamento']
+
 export function OrderForm() {
   const navigate = useNavigate()
-  const { id } = useParams()
-  const isEditing = !!id
   const [clients, setClients] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
@@ -64,32 +65,38 @@ export function OrderForm() {
       navigate('/orders')
     } catch (err) {
       console.error(err)
-      alert('Erro ao criar OS. Verifique o console.')
+      alert('Erro ao criar OS')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/orders')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
-          <ArrowLeft size={20} />
+        <button
+          onClick={() => navigate('/orders')}
+          className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={18} className="text-text-secondary" />
         </button>
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Nova Ordem de Serviço</h1>
-          <p className="text-sm text-text-muted mt-1">Preencha os dados do pedido</p>
+          <p className="text-sm text-text-muted mt-1">Preencha os dados do pedido de produção</p>
         </div>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader>
+          <CardTitle>Dados do Pedido</CardTitle>
+        </CardHeader>
+        <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <select
-                  className="flex h-10 w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   value={form.client_id}
                   onChange={(e) => setForm({ ...form, client_id: e.target.value })}
                   required
@@ -103,7 +110,7 @@ export function OrderForm() {
               <div className="space-y-2">
                 <Label>Produto *</Label>
                 <select
-                  className="flex h-10 w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   value={form.product_id}
                   onChange={(e) => setForm({ ...form, product_id: e.target.value })}
                   required
@@ -136,11 +143,25 @@ export function OrderForm() {
                 <Input type="date" value={form.delivery_date} onChange={(e) => setForm({ ...form, delivery_date: e.target.value })} required />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label>Observações</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
             </div>
-            <div className="flex justify-end gap-3">
+
+            <div className="rounded-2xl bg-primary-bg border border-primary/20 p-5">
+              <p className="text-sm font-medium text-primary mb-3">Fases da produção que serão criadas automaticamente:</p>
+              <div className="flex flex-wrap gap-2">
+                {defaultStages.map((stage, i) => (
+                  <div key={stage} className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-text-secondary border border-border">
+                    <CheckCircle2 size={12} className="text-primary" />
+                    {stage}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => navigate('/orders')}>Cancelar</Button>
               <Button type="submit" disabled={loading}>
                 <Save size={16} />

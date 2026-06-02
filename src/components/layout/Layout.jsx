@@ -1,12 +1,29 @@
-import { Outlet, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 
+const pageTitles = {
+  '/dashboard': 'Dashboard',
+  '/orders': 'Ordens de Serviço',
+  '/orders/new': 'Nova Ordem de Serviço',
+  '/kanban': 'Produção',
+  '/clients': 'Clientes',
+  '/products': 'Produtos',
+  '/reports': 'Relatórios',
+  '/settings': 'Configurações',
+}
+
 export function Layout() {
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
+
+  const basePath = '/' + location.pathname.split('/')[1]
+  const title = pageTitles[basePath] || 'ConfecOS'
 
   useEffect(() => {
     supabase.auth.getSession()
@@ -14,10 +31,7 @@ export function Layout() {
         setAuthenticated(!!session)
         setLoading(false)
       })
-      .catch((err) => {
-        console.error('Erro ao verificar sessão:', err)
-        setLoading(false)
-      })
+      .catch(() => setLoading(false))
 
     const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthenticated(!!session)
@@ -28,8 +42,16 @@ export function Layout() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-bg-light">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="flex h-screen items-center justify-center bg-bg-main">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+            <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+          <p className="text-sm text-text-muted">Carregando...</p>
+        </div>
       </div>
     )
   }
@@ -37,11 +59,19 @@ export function Layout() {
   if (!authenticated) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex min-h-screen bg-bg-light">
-      <Sidebar />
-      <div className="ml-64 flex-1">
-        <Header />
-        <main className="p-8">
+    <div className="flex min-h-screen bg-bg-main">
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+      />
+      <div
+        className="flex-1 flex flex-col transition-all duration-300"
+        style={{ marginLeft: collapsed ? '80px' : '240px' }}
+      >
+        <Header title={title} />
+        <main className="flex-1 p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

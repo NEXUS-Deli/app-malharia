@@ -4,8 +4,8 @@ export function Dialog({ open, onOpenChange, children }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange?.(false)} />
-      <div className="relative z-50 w-full max-w-lg mx-4 rounded-xl bg-card-bg border border-border-light shadow-lg">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => onOpenChange?.(false)} />
+      <div className="relative z-50 w-full max-w-lg mx-4 rounded-2xl border border-border bg-card-bg shadow-2xl">
         {children}
       </div>
     </div>
@@ -13,7 +13,7 @@ export function Dialog({ open, onOpenChange, children }) {
 }
 
 export function DialogHeader({ className, ...props }) {
-  return <div className={cn('flex flex-col gap-1.5 p-6 pb-0', className)} {...props} />
+  return <div className={cn('flex flex-col gap-1.5 p-6 pb-4', className)} {...props} />
 }
 
 export function DialogTitle({ className, ...props }) {
@@ -21,5 +21,5 @@ export function DialogTitle({ className, ...props }) {
 }
 
 export function DialogContent({ className, ...props }) {
-  return <div className={cn('p-6', className)} {...props} />
+  return <div className={cn('p-6 pt-0', className)} {...props} />
 }

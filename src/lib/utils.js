@@ -29,16 +29,16 @@ export const statusLabels = {
 }
 
 export const statusColors = {
-  aberta: 'bg-blue-100 text-blue-800',
-  em_producao: 'bg-yellow-100 text-yellow-800',
-  pausada: 'bg-gray-100 text-gray-800',
-  finalizada: 'bg-green-100 text-green-800',
-  entregue: 'bg-emerald-100 text-emerald-800',
-  cancelada: 'bg-red-100 text-red-800',
-  pendente: 'bg-gray-100 text-gray-600',
-  em_andamento: 'bg-blue-100 text-blue-800',
-  concluida: 'bg-green-100 text-green-800',
-  pulada: 'bg-purple-100 text-purple-800',
+  aberta: 'bg-primary-bg text-primary',
+  em_producao: 'bg-warning-bg text-warning',
+  pausada: 'bg-gray-100 text-text-muted',
+  finalizada: 'bg-success-bg text-success',
+  entregue: 'bg-success-bg text-success',
+  cancelada: 'bg-danger-bg text-danger',
+  pendente: 'bg-gray-100 text-text-muted',
+  em_andamento: 'bg-info-bg text-info',
+  concluida: 'bg-success-bg text-success',
+  pulada: 'bg-gray-100 text-text-muted',
 }
 
 export const priorityLabels = {
@@ -49,8 +49,28 @@ export const priorityLabels = {
 }
 
 export const priorityColors = {
-  baixa: 'bg-gray-100 text-gray-600',
-  normal: 'bg-blue-100 text-blue-800',
-  alta: 'bg-yellow-100 text-yellow-800',
-  urgente: 'bg-red-100 text-red-800',
+  baixa: 'bg-gray-100 text-text-muted',
+  normal: 'bg-primary-bg text-primary',
+  alta: 'bg-warning-bg text-warning',
+  urgente: 'bg-danger-bg text-danger',
+}
+
+export function getDeadlineStatus(deliveryDate) {
+  if (!deliveryDate) return 'normal'
+  const daysDiff = Math.ceil((new Date(deliveryDate) - new Date()) / (1000 * 60 * 60 * 24))
+  if (daysDiff < 0) return 'overdue'
+  if (daysDiff <= 3) return 'warning'
+  return 'normal'
+}
+
+export const deadlineStyles = {
+  overdue: 'text-danger',
+  warning: 'text-warning',
+  normal: 'text-success',
+}
+
+export const deadlineLabels = {
+  overdue: 'Atrasado',
+  warning: 'Próximo ao vencimento',
+  normal: 'No prazo',
 }

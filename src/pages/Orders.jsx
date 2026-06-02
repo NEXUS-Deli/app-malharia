@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Eye, Filter } from 'lucide-react'
+import { Plus, Eye, ClipboardList } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Select } from '../components/ui/select'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { StatusBadge, PriorityBadge } from '../components/ui/status-badge'
+import { Badge } from '../components/ui/badge'
 import { formatDate } from '../lib/utils'
 import { ordersService } from '../services/orders'
 
 export function Orders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const navigate = useNavigate()
 
@@ -34,77 +31,116 @@ export function Orders() {
     }
   }
 
-  const filtered = orders.filter(o =>
-    o.order_number?.toLowerCase().includes(search.toLowerCase()) ||
-    o.clients?.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const getDeadlineVariant = (deliveryDate) => {
+    if (!deliveryDate) return 'default'
+    const diff = Math.ceil((new Date(deliveryDate) - new Date()) / (1000 * 60 * 60 * 24))
+    if (diff < 0) return 'danger'
+    if (diff <= 3) return 'warning'
+    return 'success'
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Ordens de Serviço</h1>
-          <p className="text-sm text-text-muted mt-1">Gerencie as ordens de produção</p>
+          <p className="text-sm text-text-muted mt-1">Gerencie as ordens de produção da fábrica</p>
         </div>
-        <Button onClick={() => navigate('/orders/new')}><Plus size={16} /> Nova OS</Button>
+        <Button onClick={() => navigate('/orders/new')}>
+          <Plus size={18} /> Nova Ordem de Serviço
+        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-              <Input className="pl-10" placeholder="Buscar por número ou cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
-            <div className="w-48">
-              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">Todos os status</option>
-                <option value="aberta">Aberta</option>
-                <option value="em_producao">Em Produção</option>
-                <option value="pausada">Pausada</option>
-                <option value="finalizada">Finalizada</option>
-                <option value="entregue">Entregue</option>
-                <option value="cancelada">Cancelada</option>
-              </Select>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <span className="text-sm font-medium text-text-secondary">Filtros:</span>
+            <div className="flex flex-wrap gap-2">
+              {['', 'aberta', 'em_producao', 'finalizada', 'entregue', 'cancelada'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    statusFilter === s
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
+                  }`}
+                >
+                  {s === '' ? 'Todos' : 
+                    s === 'aberta' ? 'Aberta' :
+                    s === 'em_producao' ? 'Em Produção' :
+                    s === 'finalizada' ? 'Finalizada' :
+                    s === 'entregue' ? 'Entregue' : 'Cancelada'}
+                </button>
+              ))}
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
+
           {loading ? (
-            <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-          ) : filtered.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº OS</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Qtd</TableHead>
-                  <TableHead>Prazo</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium text-text-primary">#{order.order_number}</TableCell>
-                    <TableCell>{order.clients?.name || '—'}</TableCell>
-                    <TableCell>{order.products?.name || '—'}</TableCell>
-                    <TableCell>{order.quantity}</TableCell>
-                    <TableCell>{formatDate(order.delivery_date)}</TableCell>
-                    <TableCell><PriorityBadge priority={order.priority} /></TableCell>
-                    <TableCell><StatusBadge status={order.status} /></TableCell>
-                    <TableCell>
-                      <button onClick={() => navigate(`/orders/${order.id}`)} className="p-1 hover:text-primary transition-colors cursor-pointer"><Eye size={16} /></button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="flex justify-center py-12">
+              <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center">
+                <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              </div>
+            </div>
+          ) : orders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">OS</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Qtd</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Prazo</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Fase</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Status</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light">
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4 font-medium text-text-primary">#{order.order_number}</td>
+                      <td className="py-3 px-4 text-text-secondary">{order.clients?.name || '—'}</td>
+                      <td className="py-3 px-4 text-text-secondary">{order.products?.name || '—'}</td>
+                      <td className="py-3 px-4 text-text-secondary">{order.quantity}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={getDeadlineVariant(order.delivery_date)}>
+                          {formatDate(order.delivery_date)}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm text-text-secondary">{order.current_stage || '—'}</span>
+                      </td>
+                      <td className="py-3 px-4"><StatusBadge status={order.status} /></td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                          className="inline-flex items-center gap-1 text-primary hover:text-primary-dark text-sm font-medium transition-colors cursor-pointer"
+                        >
+                          <Eye size={16} /> Detalhes
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
-            <p className="text-sm text-text-muted text-center py-8">Nenhuma OS encontrada</p>
+            <div className="text-center py-12">
+              <div className="flex justify-center mb-4">
+                <div className="h-16 w-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <ClipboardList size={32} className="text-text-muted" />
+                </div>
+              </div>
+              <p className="text-text-muted text-sm">Nenhuma ordem de serviço encontrada</p>
+              <Button variant="outline" className="mt-4" onClick={() => navigate('/orders/new')}>
+                <Plus size={16} /> Criar primeira OS
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

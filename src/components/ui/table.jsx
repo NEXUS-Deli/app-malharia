@@ -9,18 +9,18 @@ export function Table({ className, ...props }) {
 }
 
 export function TableHeader({ className, ...props }) {
-  return <thead className={cn('[&_tr]:border-b border-border-light', className)} {...props} />
+  return <thead className={cn('bg-gray-50/50', className)} {...props} />
 }
 
 export function TableBody({ className, ...props }) {
-  return <tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  return <tbody className={cn('divide-y divide-border-light', className)} {...props} />
 }
 
 export function TableRow({ className, ...props }) {
   return (
     <tr
       className={cn(
-        'border-b border-border-light transition-colors hover:bg-gray-50 data-[state=selected]:bg-gray-100',
+        'transition-colors hover:bg-gray-50 data-[state=selected]:bg-gray-100',
         className
       )}
       {...props}
