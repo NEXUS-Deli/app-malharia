@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle,
-  Printer, PauseCircle, PlayCircle, Undo2, Edit3, Save
+  Printer, PauseCircle, PlayCircle, Undo2, Edit3, Save, ImageUp, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
@@ -14,6 +14,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '..
 import { Avatar } from '../components/ui/avatar'
 import { formatDate, getDeadlineStatus, deadlineStyles } from '../lib/utils'
 import { ordersService } from '../services/orders'
+import { referenceImageService } from '../services/referenceImage'
 
 const stageNames = [
   { name: 'Desenho' },
@@ -32,6 +33,7 @@ export function OrderDetails() {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const load = async () => {
     try {
@@ -90,6 +92,32 @@ export function OrderDetails() {
   const handleGoBack = () => {
     if (!confirm('Voltar para a fase anterior?')) return
     doAction('goback', () => ordersService.moveToPreviousStage(id), 'Fase revertida!')
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+    try {
+      await referenceImageService.upload(id, file)
+      toast.success('Imagem salva!')
+      await load()
+    } catch (err) {
+      toast.error(`Erro ao salvar imagem: ${err.message}`)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleImageRemove = async () => {
+    if (!confirm('Remover imagem de referência?')) return
+    try {
+      await referenceImageService.remove(id)
+      toast.success('Imagem removida')
+      await load()
+    } catch (err) {
+      toast.error(`Erro ao remover imagem: ${err.message}`)
+    }
   }
 
   if (loading) {
@@ -467,6 +495,43 @@ export function OrderDetails() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Imagem de Referência</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {order.reference_image_url ? (
+                <div className="space-y-3">
+                  <img
+                    src={order.reference_image_url}
+                    alt="Referência"
+                    className="w-full rounded-xl border border-border object-cover max-h-64"
+                  />
+                  <div className="flex gap-2">
+                    <label className="flex-1 cursor-pointer">
+                      <Button type="button" variant="outline" className="w-full" disabled={uploadingImage}>
+                        <ImageUp size={14} /> {uploadingImage ? 'Enviando...' : 'Trocar'}
+                      </Button>
+                      <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                    <Button type="button" variant="outline" onClick={handleImageRemove}>
+                      <X size={14} /> Remover
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center h-32 rounded-xl border-2 border-dashed border-border bg-gray-50 hover:border-primary/40 hover:bg-primary-bg/30 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center gap-2 text-text-muted">
+                    <ImageUp size={24} />
+                    <span className="text-sm">{uploadingImage ? 'Enviando...' : 'Adicionar imagem'}</span>
+                    <span className="text-xs">PNG, JPG ou SVG — até 5MB</span>
+                  </div>
+                  <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+                </label>
+              )}
             </CardContent>
           </Card>
         </div>

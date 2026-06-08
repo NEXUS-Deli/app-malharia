@@ -460,6 +460,23 @@ function PrintOS() {
             </div>
           </div>
 
+          {/* === IMAGEM DE REFERÊNCIA === */}
+          {order.reference_image_url && (
+            <>
+              <div className="page-break" />
+              <div className="mt-8 pt-4 border-t-2 border-gray-900">
+                <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Imagem de Referência</div>
+                <div className="flex justify-center">
+                  <img
+                    src={order.reference_image_url}
+                    alt="Referência de produção"
+                    className="max-w-full max-h-[600px] object-contain border border-gray-200 rounded"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           {/* === QR CODE + ASSINATURAS === */}
           <div className="flex items-end justify-between mt-8 pt-4 border-t border-gray-300">
             <div className="flex gap-8">

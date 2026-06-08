@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, CheckCircle2, Plus, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Save, CheckCircle2, Plus, Trash2, UserPlus, ImageUp, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -12,6 +12,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '../components/
 import { clientsService } from '../services/clients'
 import { productsService } from '../services/products'
 import { ordersService } from '../services/orders'
+import { referenceImageService } from '../services/referenceImage'
 
 const defaultStages = ['Desenho', 'Impressão', 'Calandra', 'Corte', 'Costura', 'Acabamento']
 
@@ -33,6 +34,8 @@ export function OrderForm() {
     phone: '',
     notes: '',
   })
+  const [referenceFile, setReferenceFile] = useState(null)
+  const [referencePreview, setReferencePreview] = useState('')
   const [items, setItems] = useState([{ model: '', custom_name: '', size: '', quantity: 1, unit_price: 0 }])
 
   useEffect(() => {
@@ -103,6 +106,18 @@ export function OrderForm() {
     setItems(updated)
   }
 
+  const handleReferenceFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setReferenceFile(file)
+    setReferencePreview(URL.createObjectURL(file))
+  }
+
+  const clearReferenceFile = () => {
+    setReferenceFile(null)
+    setReferencePreview('')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -111,26 +126,29 @@ export function OrderForm() {
       const totalPrice = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0)
       const avgPrice = totalQty > 0 ? totalPrice / totalQty : 0
       const orderData = {
-        client_id: form.client_id || null,
-        product_id: form.product_id || null,
+        client_id: form.client_id,
+        product_id: form.product_id,
         quantity: totalQty,
         unit_price: avgPrice,
         total_price: totalPrice,
-        entry_date: form.entry_date || null,
-        delivery_date: form.delivery_date || null,
+        entry_date: form.entry_date,
+        delivery_date: form.delivery_date,
         priority: form.priority,
-        contact_person: form.contact_person || null,
-        phone: form.phone || null,
-        notes: form.notes || null,
+        contact_person: form.contact_person,
+        phone: form.phone,
+        notes: form.notes,
         order_number: await getNextOrderNumber(),
         current_stage: 'Desenho',
         status: 'aberta',
       }
-      await ordersService.create(orderData, items)
+      const created = await ordersService.create(orderData, items)
+      if (referenceFile) {
+        await referenceImageService.upload(created.id, referenceFile)
+      }
       navigate('/orders')
     } catch (err) {
       console.error(err)
-      alert(`Erro ao criar OS: ${err.message || err.description || JSON.stringify(err)}`)
+      alert('Erro ao criar OS')
     } finally {
       setLoading(false)
     }
@@ -320,6 +338,32 @@ export function OrderForm() {
             <div className="space-y-2">
               <Label>Observações</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Imagem de Referência</Label>
+              <p className="text-xs text-text-muted">Anexe uma imagem para auxiliar na produção (opcional)</p>
+              {referencePreview ? (
+                <div className="relative inline-block">
+                  <img src={referencePreview} alt="Preview" className="h-40 rounded-xl border border-border object-cover" />
+                  <button
+                    type="button"
+                    onClick={clearReferenceFile}
+                    className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow-sm cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center h-32 rounded-xl border-2 border-dashed border-border bg-gray-50 hover:border-primary/40 hover:bg-primary-bg/30 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center gap-2 text-text-muted">
+                    <ImageUp size={24} />
+                    <span className="text-sm">Clique para selecionar imagem</span>
+                    <span className="text-xs">PNG, JPG ou SVG — até 5MB</span>
+                  </div>
+                  <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={handleReferenceFile} className="hidden" />
+                </label>
+              )}
             </div>
 
             <div className="rounded-2xl bg-primary-bg border border-primary/20 p-5">
