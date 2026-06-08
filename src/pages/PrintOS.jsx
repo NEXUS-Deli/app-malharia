@@ -128,23 +128,38 @@ function PrintOS() {
       <body>
         ${content}
         <script>
-          var imgs = document.images;
+          var imgs = Array.prototype.slice.call(document.images);
           var len = imgs.length;
           var loaded = 0;
-          if (len === 0) { window.print(); window.close(); }
-          for (var i = 0; i < len; i++) {
-            imgs[i].onload = function() {
-              loaded++;
-              if (loaded >= len) { window.print(); window.close(); }
-            };
-            imgs[i].onerror = function() {
-              loaded++;
-              if (loaded >= len) { window.print(); window.close(); }
-            };
-            if (imgs[i].complete) {
-              loaded++;
-              if (loaded >= len) { window.print(); window.close(); }
-            }
+          var printed = false;
+
+          function triggerPrint() {
+            if (printed) return;
+            printed = true;
+            window.onafterprint = function() { window.close(); };
+            window.print();
+          }
+
+          if (len === 0) {
+            triggerPrint();
+          } else {
+            imgs.forEach(function(img) {
+              if (img.complete) {
+                loaded++;
+                if (loaded >= len) { triggerPrint(); }
+              } else {
+                img.addEventListener('load', function() {
+                  loaded++;
+                  if (loaded >= len) { triggerPrint(); }
+                });
+                img.addEventListener('error', function() {
+                  loaded++;
+                  if (loaded >= len) { triggerPrint(); }
+                });
+              }
+            });
+            // Fallback timeout in case loading gets stuck
+            setTimeout(triggerPrint, 3000);
           }
         </script>
       </body>
