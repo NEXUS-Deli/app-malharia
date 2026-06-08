@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, PlayCircle, CheckCircle2, AlertCircle, TrendingUp, DollarSign, Plus, Clock, ExternalLink } from 'lucide-react'
+import { FileText, PlayCircle, CheckCircle2, AlertCircle, Plus, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { MetricCard } from '../components/ui/metric-card'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
@@ -12,7 +12,7 @@ import { dashboardService } from '../services/dashboard'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 
 export function Dashboard() {
-  const [metrics, setMetrics] = useState({ open: 0, inProduction: 0, finished: 0, delayed: 0, monthValue: 0 })
+  const [metrics, setMetrics] = useState({ open: 0, inProduction: 0, finished: 0, delayed: 0 })
   const [productionByStage, setProductionByStage] = useState([])
   const [latestOrders, setLatestOrders] = useState([])
   const [upcoming, setUpcoming] = useState([])
@@ -76,11 +76,6 @@ export function Dashboard() {
         <MetricCard title="OS em Produção" value={metrics.inProduction} icon={PlayCircle} trend={12} subtitle="Em andamento" />
         <MetricCard title="OS Atrasadas" value={metrics.delayed} icon={AlertCircle} className="border-danger/20" subtitle="Fora do prazo" />
         <MetricCard title="OS Finalizadas" value={metrics.finished} icon={CheckCircle2} trend={24} subtitle="Concluídas no total" />
-      </div>
-
-      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Produção do Mês" value={latestOrders.length} icon={TrendingUp} subtitle="OS criadas este mês" />
-        <MetricCard title="Valor em Produção" value={metrics.monthValue} icon={DollarSign} subtitle="Valor total do mês" format="currency" />
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
