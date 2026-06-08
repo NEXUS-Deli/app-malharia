@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Printer, Download, ArrowLeft, FileText } from 'lucide-react'
+import { Printer, Download, ArrowLeft } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { StatusBadge } from '../components/ui/status-badge'
 import { formatDate, statusLabels, priorityLabels } from '../lib/utils'
 import { ordersService } from '../services/orders'
 import { companyService } from '../services/company'
@@ -71,9 +70,15 @@ function PrintOS() {
           .font-bold { font-weight: 700; }
           .text-sm { font-size: 9px; }
           .text-xs { font-size: 8px; }
+          .text-base { font-size: 11px; }
           .text-lg { font-size: 14px; }
           .text-xl { font-size: 18px; }
           .bg-gray-50 { background: #f9fafb; }
+          .rounded-lg { border-radius: 8px; }
+          .p-5 { padding: 20px; }
+          .mb-5 { margin-bottom: 20px; }
+          .pb-2 { padding-bottom: 8px; }
+          .flex-1 { flex: 1; }
           .bg-gray-100 { background: #f3f4f6; }
           .text-gray-500 { color: #6b7280; }
           .text-gray-600 { color: #4b5563; }
@@ -141,7 +146,7 @@ function PrintOS() {
               if (loaded >= len) { window.print(); window.close(); }
             }
           }
-        <\/script>
+        </script>
       </body>
       </html>
     `)
@@ -166,17 +171,31 @@ function PrintOS() {
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           .font-bold { font-weight: 700; }
+          .text-xs { font-size: 8px; }
+          .text-sm { font-size: 9px; }
+          .text-base { font-size: 11px; }
+          .text-lg { font-size: 14px; }
+          .text-xl { font-size: 18px; }
+          .text-gray-500 { color: #6b7280; }
+          .text-gray-900 { color: #111827; }
+          .rounded-lg { border-radius: 8px; }
           .mb-2 { margin-bottom: 8px; }
+          .mb-3 { margin-bottom: 12px; }
           .mb-4 { margin-bottom: 16px; }
+          .mb-5 { margin-bottom: 20px; }
           .mt-4 { margin-top: 16px; }
           .mt-8 { margin-top: 32px; }
+          .p-3 { padding: 12px; }
+          .p-5 { padding: 20px; }
+          .pb-2 { padding-bottom: 8px; }
           .flex { display: flex; }
+          .flex-1 { flex: 1; }
           .items-center { align-items: center; }
           .justify-between { justify-content: space-between; }
           .gap-8 { gap: 32px; }
           .w-1\\/2 { width: 50%; }
           .border-b { border-bottom: 1px solid #ddd; }
-          .p-3 { padding: 12px; }
+          .bg-gray-50 { background: #f9fafb; }
           .bg-gray-100 { background: #f3f4f6; }
           hr { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
         </style>
@@ -305,24 +324,24 @@ function PrintOS() {
           </div>
 
           {/* === DADOS DO PEDIDO === */}
-          <div className="border border-gray-200 rounded p-3 mb-4">
-            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dados do Pedido</div>
+          <div className="border border-gray-200 rounded-lg p-5 mb-5 bg-gray-50">
+            <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 pb-2 border-b border-gray-200">Dados do Pedido</div>
             <div className="flex gap-8">
-              <div>
-                <div className="text-xs text-gray-500">Produto</div>
-                <div className="text-sm font-bold">{order.products?.name || '---'}</div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-1">Produto</div>
+                <div className="text-lg font-bold text-gray-900">{order.products?.name || '---'}</div>
               </div>
-              <div>
-                <div className="text-xs text-gray-500">Categoria</div>
-                <div className="text-sm">{order.products?.category || '---'}</div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-1">Categoria</div>
+                <div className="text-lg font-bold text-gray-900">{order.products?.category || '---'}</div>
               </div>
-              <div>
-                <div className="text-xs text-gray-500">Quantidade Total</div>
-                <div className="text-sm font-bold">{totalQty} peças</div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-1">Quantidade Total</div>
+                <div className="text-lg font-bold text-gray-900">{totalQty} peças</div>
               </div>
-              <div>
-                <div className="text-xs text-gray-500">Prioridade</div>
-                <div className="text-sm">{priorityLabels[order.priority] || order.priority}</div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-1">Prioridade</div>
+                <div className="text-lg font-bold text-gray-900">{priorityLabels[order.priority] || order.priority}</div>
               </div>
             </div>
           </div>
