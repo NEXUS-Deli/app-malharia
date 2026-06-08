@@ -209,10 +209,6 @@ export function OrderForm() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Valor Unitário (R$)</Label>
-                <Input type="number" min="0" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div className="space-y-2">
                 <Label>Data de Entrada</Label>
                 <Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} />
               </div>
@@ -237,7 +233,7 @@ export function OrderForm() {
                       <th className="text-left py-2 pr-2">Modelo</th>
                       <th className="text-left py-2 px-2">Nome Personalizado</th>
                       <th className="text-center py-2 px-2 w-16">Tam</th>
-                      <th className="text-center py-2 px-2 w-16">Qtd</th>
+                      <th className="text-center py-2 px-2 w-24">Qtd</th>
                       <th className="text-right py-2 px-2 w-24">Valor Unit.</th>
                       <th className="text-right py-2 px-2 w-24">Valor Total</th>
                       <th className="w-8 py-2 pl-2" />
