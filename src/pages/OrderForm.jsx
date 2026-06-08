@@ -179,12 +179,11 @@ export function OrderForm() {
               </div>
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <select
-                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  value={form.product_id}
-                  onChange={(e) => setForm({ ...form, product_id: e.target.value })}
-                  required
-                >
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    value={form.product_id}
+                    onChange={(e) => setForm({ ...form, product_id: e.target.value })}
+                  >
                   <option value="">Selecione um produto</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
