@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, KanbanSquare, Users, Package,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { supabase } from '../../lib/supabase'
+import { companyService } from '../../services/company'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,6 +36,23 @@ const navItems = [
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const [tradeName, setTradeName] = useState('CONFECOS')
+
+  useEffect(() => {
+    const loadCompany = async () => {
+      try {
+        const settings = await companyService.getSettings()
+        if (settings?.trade_name) {
+          setTradeName(settings.trade_name)
+        } else {
+          setTradeName('CONFECOS')
+        }
+      } catch (err) {
+        console.error('Erro ao buscar dados da empresa na Sidebar:', err)
+      }
+    }
+    loadCompany()
+  }, [location.pathname])
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     const groups = {}
@@ -68,7 +86,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="text-sm font-bold text-white tracking-tight">CONFECOS</h1>
+            <h1 className="text-sm font-bold text-white tracking-tight truncate">{tradeName}</h1>
             <p className="text-[10px] text-sidebar-text tracking-wider uppercase">Controle de Produção</p>
           </div>
         )}
