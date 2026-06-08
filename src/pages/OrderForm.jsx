@@ -111,17 +111,17 @@ export function OrderForm() {
       const totalPrice = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0)
       const avgPrice = totalQty > 0 ? totalPrice / totalQty : 0
       const orderData = {
-        client_id: form.client_id,
-        product_id: form.product_id,
+        client_id: form.client_id || null,
+        product_id: form.product_id || null,
         quantity: totalQty,
         unit_price: avgPrice,
         total_price: totalPrice,
-        entry_date: form.entry_date,
-        delivery_date: form.delivery_date,
+        entry_date: form.entry_date || null,
+        delivery_date: form.delivery_date || null,
         priority: form.priority,
-        contact_person: form.contact_person,
-        phone: form.phone,
-        notes: form.notes,
+        contact_person: form.contact_person || null,
+        phone: form.phone || null,
+        notes: form.notes || null,
         order_number: await getNextOrderNumber(),
         current_stage: 'Desenho',
         status: 'aberta',
@@ -130,7 +130,7 @@ export function OrderForm() {
       navigate('/orders')
     } catch (err) {
       console.error(err)
-      alert('Erro ao criar OS')
+      alert(`Erro ao criar OS: ${err.message || err.description || JSON.stringify(err)}`)
     } finally {
       setLoading(false)
     }
@@ -183,6 +183,7 @@ export function OrderForm() {
                     className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     value={form.product_id}
                     onChange={(e) => setForm({ ...form, product_id: e.target.value })}
+                    required
                   >
                   <option value="">Selecione um produto</option>
                   {products.map((p) => (
