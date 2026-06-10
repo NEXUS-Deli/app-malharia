@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Eye, ClipboardList } from 'lucide-react'
+import { Plus, Eye, ClipboardList, DollarSign, User as UserIcon } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { StatusBadge, PriorityBadge } from '../components/ui/status-badge'
 import { Badge } from '../components/ui/badge'
-import { formatDate } from '../lib/utils'
+import { formatDate, formatCurrency, paymentStatusLabels, paymentStatusColors } from '../lib/utils'
 import { ordersService } from '../services/orders'
 
 export function Orders() {
@@ -93,7 +93,9 @@ export function Orders() {
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">OS</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Qtd</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Vendedor</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Valor</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Financeiro</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Prazo</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Fase</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Status</th>
@@ -106,7 +108,26 @@ export function Orders() {
                       <td className="py-3 px-4 font-medium text-text-primary">{order.order_number}</td>
                       <td className="py-3 px-4 text-text-secondary">{order.clients?.name || '—'}</td>
                       <td className="py-3 px-4 text-text-secondary">{order.products?.name || '—'}</td>
-                      <td className="py-3 px-4 text-text-secondary">{order.quantity}</td>
+                      <td className="py-3 px-4">
+                        <span className="text-text-secondary text-xs flex items-center gap-1">
+                          <UserIcon size={12} className="text-text-muted" />
+                          {order.seller?.name || '—'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-text-secondary font-medium">
+                        {formatCurrency(order.total_price)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {order.payment_status ? (
+                          <Badge variant={
+                            order.payment_status === 'pago' ? 'success' :
+                            order.payment_status === 'entrada_parcial' ? 'warning' :
+                            order.payment_status === 'sem_entrada' ? 'danger' : 'default'
+                          }>
+                            {paymentStatusLabels[order.payment_status]}
+                          </Badge>
+                        ) : '—'}
+                      </td>
                       <td className="py-3 px-4">
                         <Badge variant={getDeadlineVariant(order.delivery_date)}>
                           {formatDate(order.delivery_date)}

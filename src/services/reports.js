@@ -5,23 +5,27 @@ async function getUserCompanyId() {
   if (!user) return null
   const { data } = await supabase
     .from('profiles')
-    .select('company_id')
+    .select('company_id, role')
     .eq('id', user.id)
     .single()
-  return data?.company_id
+  return data
 }
 
 const stageOrder = ['Desenho', 'Impressao', 'Calandra', 'Corte', 'Costura', 'Acabamento']
 
 export const reportsService = {
+  // ─── EXISTENTES (com company_id filter) ──────────────────
+
   async getExecutiveDashboard(period = 'month') {
     const now = new Date()
     const startDate = getPeriodStart(now, period)
+    const { company_id, role } = await getUserCompanyId()
 
-    const orders = await supabase
-      .from('production_orders')
-      .select('id, status, total_price, quantity, delivery_date, entry_date, created_at')
-      .then(r => r.data || [])
+    let query = supabase.from('production_orders').select('id, status, total_price, entry_amount, remaining_amount, payment_status, quantity, delivery_date, entry_date, created_at, seller_id')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data: orders } = await query
+    if (!orders) return { totalOpen: 0, totalInProduction: 0, totalFinished: 0, totalDelayed: 0, monthProduction: 0, inProductionValue: 0, periodValue: 0, avgTicket: 0, totalReceived: 0, totalPending: 0 }
 
     const finished = orders.filter(o => ['finalizada', 'entregue'].includes(o.status))
     const inProduction = orders.filter(o => o.status === 'em_producao')
@@ -36,6 +40,8 @@ export const reportsService = {
     const periodValue = periodOrders.reduce((s, o) => s + Number(o.total_price || 0), 0)
     const finishedValue = finishedPeriod.reduce((s, o) => s + Number(o.total_price || 0), 0)
     const avgTicket = periodOrders.length > 0 ? periodValue / periodOrders.length : 0
+    const totalReceived = orders.reduce((s, o) => s + Number(o.entry_amount || 0), 0)
+    const totalPending = orders.filter(o => o.payment_status !== 'pago').reduce((s, o) => s + Number(o.remaining_amount || 0), 0)
 
     return {
       totalOpen: open.length,
@@ -46,19 +52,24 @@ export const reportsService = {
       inProductionValue: inProdValue,
       periodValue: finishedValue,
       avgTicket,
+      totalReceived,
+      totalPending,
     }
   },
 
   async getProductionByStage() {
+    const { company_id, role } = await getUserCompanyId()
+
     const { data: stages } = await supabase
       .from('production_stages')
       .select('*')
       .order('position')
     if (!stages) return []
 
-    const { data: orders } = await supabase
-      .from('production_orders')
-      .select('id, current_stage, status, total_price')
+    let query = supabase.from('production_orders').select('id, current_stage, status, total_price')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data: orders } = await query
       .in('status', ['aberta', 'em_producao', 'pausada'])
     if (!orders) return []
 
@@ -109,26 +120,27 @@ export const reportsService = {
     const maxQueue = stages.reduce((best, s) => s.osCount > (best?.osCount || 0) ? s : best, stages[0])
     const maxTime = stages.reduce((best, s) => s.avgTimeDays > (best?.avgTimeDays || 0) ? s : best, stages[0])
 
-    const { data: pausedOrders } = await supabase
-      .from('production_orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'pausada')
+    const { company_id, role } = await getUserCompanyId()
+    let query = supabase.from('production_orders').select('id', { count: 'exact', head: true }).eq('status', 'pausada')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+    const { count: pausedCount } = await query
 
     return {
       stages,
       bottleneckQueue: maxQueue,
       bottleneckTime: maxTime,
-      pausedCount: pausedOrders?.length || 0,
+      pausedCount: pausedCount || 0,
     }
   },
 
   async getDeadlineReport() {
     const now = new Date()
     const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const { company_id, role } = await getUserCompanyId()
 
-    const { data: orders } = await supabase
-      .from('production_orders')
-      .select('id, status, delivery_date, total_price')
+    let query = supabase.from('production_orders').select('id, status, delivery_date, total_price')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+    const { data: orders } = await query
     if (!orders) return { onTime: 0, late: 0, currentlyLate: 0, nearDeadline: 0, deliveryRate: 0 }
 
     const finished = orders.filter(o => ['finalizada', 'entregue'].includes(o.status))
@@ -153,9 +165,11 @@ export const reportsService = {
   },
 
   async getClientRanking() {
-    const { data: orders } = await supabase
-      .from('production_orders')
-      .select('id, client_id, total_price, quantity, clients!inner(name)')
+    const { company_id, role } = await getUserCompanyId()
+    let query = supabase.from('production_orders').select('id, client_id, total_price, quantity, clients!inner(name)')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data: orders } = await query
     if (!orders) return []
 
     const map = {}
@@ -222,42 +236,126 @@ export const reportsService = {
   async getFinancialReport(startDate, endDate) {
     const s = startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
     const e = endDate || new Date().toISOString()
+    const { company_id, role } = await getUserCompanyId()
 
     let query = supabase
       .from('production_orders')
-      .select('id, status, total_price, quantity, created_at')
+      .select('id, status, total_price, entry_amount, remaining_amount, payment_status, quantity, created_at')
       .gte('created_at', s)
       .lte('created_at', e)
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
 
     const { data: orders } = await query
-    if (!orders) return { totalValue: 0, totalPecas: 0, totalOs: 0, avgTicket: 0 }
+    if (!orders) return { totalValue: 0, totalPecas: 0, totalOs: 0, avgTicket: 0, totalReceived: 0, totalPending: 0 }
 
     const totalValue = orders.reduce((s, o) => s + Number(o.total_price || 0), 0)
     const totalPecas = orders.reduce((s, o) => s + Number(o.quantity || 0), 0)
     const totalOs = orders.length
+    const totalReceived = orders.reduce((s, o) => s + Number(o.entry_amount || 0), 0)
+    const totalPending = orders.filter(o => o.payment_status !== 'pago').reduce((s, o) => s + Number(o.remaining_amount || 0), 0)
 
     return {
       totalValue,
       totalPecas,
       totalOs,
       avgTicket: totalOs > 0 ? totalValue / totalOs : 0,
+      totalReceived,
+      totalPending,
+    }
+  },
+
+  // ─── NOVOS RELATÓRIOS ────────────────────────────────────
+
+  async getSalesBySeller(period = 'month') {
+    const now = new Date()
+    const startDate = getPeriodStart(now, period)
+    const { company_id, role } = await getUserCompanyId()
+
+    let query = supabase
+      .from('production_orders')
+      .select('id, seller_id, total_price, quantity, status, created_at, seller:profiles!seller_id(name)')
+      .not('seller_id', 'is', null)
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data: orders } = await query
+    if (!orders) return []
+
+    const periodOrders = orders.filter(o => new Date(o.created_at) >= startDate)
+    const map = {}
+
+    periodOrders.forEach(o => {
+      if (!o.seller_id) return
+      if (!map[o.seller_id]) {
+        map[o.seller_id] = {
+          sellerId: o.seller_id,
+          name: o.seller?.name || 'Desconhecido',
+          osCount: 0,
+          totalValue: 0,
+          finishedCount: 0,
+        }
+      }
+      map[o.seller_id].osCount++
+      map[o.seller_id].totalValue += Number(o.total_price || 0)
+      if (['finalizada', 'entregue'].includes(o.status)) {
+        map[o.seller_id].finishedCount++
+      }
+    })
+
+    const result = Object.values(map).map(s => ({
+      ...s,
+      avgTicket: s.osCount > 0 ? s.totalValue / s.osCount : 0,
+    }))
+
+    return result.sort((a, b) => b.totalValue - a.totalValue)
+  },
+
+  async getFinancialSummary(period = 'month') {
+    const now = new Date()
+    const startDate = getPeriodStart(now, period)
+    const { company_id, role } = await getUserCompanyId()
+
+    let query = supabase
+      .from('production_orders')
+      .select('id, total_price, entry_amount, remaining_amount, payment_status, status, created_at')
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data: orders } = await query
+    if (!orders) return { totalSold: 0, totalReceived: 0, totalPending: 0, totalOpen: 0, osCount: 0, paymentMethods: {} }
+
+    const periodOrders = orders.filter(o => new Date(o.created_at) >= startDate)
+    const activeOrders = periodOrders.filter(o => !['cancelada'].includes(o.status))
+
+    const totalSold = activeOrders.reduce((s, o) => s + Number(o.total_price || 0), 0)
+    const totalReceived = activeOrders.reduce((s, o) => s + Number(o.entry_amount || 0), 0)
+    const totalPending = activeOrders.filter(o => o.payment_status !== 'pago').reduce((s, o) => s + Number(o.remaining_amount || 0), 0)
+    const totalOpen = activeOrders.filter(o => o.payment_status === 'pendente' || o.payment_status === 'sem_entrada').length
+
+    return {
+      totalSold,
+      totalReceived,
+      totalPending,
+      totalOpen,
+      osCount: activeOrders.length,
     }
   },
 
   async getTeamPerformance() {
-    const { data: stages } = await supabase
-      .from('production_order_stages')
-      .select('responsible_id, status, started_at, completed_at')
+    const { company_id, role } = await getUserCompanyId()
+
+    let stageQuery = supabase.from('production_order_stages').select('responsible_id, status, started_at, completed_at')
+    if (company_id && role !== 'super_admin') stageQuery = stageQuery.eq('company_id', company_id)
+
+    const { data: stages } = await stageQuery
     if (!stages) return []
 
     const { data: history } = await supabase
       .from('production_history')
       .select('user_id')
-    if (!history) return []
 
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name')
+
     if (!profiles) return []
 
     const profileMap = {}
@@ -279,10 +377,12 @@ export const reportsService = {
     })
 
     const userMovedCount = {}
-    history.forEach(h => {
-      if (!h.user_id) return
-      userMovedCount[h.user_id] = (userMovedCount[h.user_id] || 0) + 1
-    })
+    if (history) {
+      history.forEach(h => {
+        if (!h.user_id) return
+        userMovedCount[h.user_id] = (userMovedCount[h.user_id] || 0) + 1
+      })
+    }
 
     const userIds = new Set([...Object.keys(userStageCount), ...Object.keys(userMovedCount)])
     return Array.from(userIds).map(id => ({
@@ -296,11 +396,16 @@ export const reportsService = {
   },
 
   async getFullHistory(limit = 100) {
-    const { data, error } = await supabase
+    const { company_id, role } = await getUserCompanyId()
+
+    let query = supabase
       .from('production_history')
       .select('*, profiles(name), production_orders(order_number)')
       .order('created_at', { ascending: false })
       .limit(limit)
+    if (company_id && role !== 'super_admin') query = query.eq('company_id', company_id)
+
+    const { data, error } = await query
     if (error) throw error
     return data || []
   },

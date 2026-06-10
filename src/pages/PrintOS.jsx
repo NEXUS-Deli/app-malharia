@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Printer, Download, ArrowLeft } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { formatDate, statusLabels, priorityLabels } from '../lib/utils'
+import { formatDate, formatCurrency, statusLabels, priorityLabels, paymentStatusLabels, paymentMethodLabels } from '../lib/utils'
 import { ordersService } from '../services/orders'
 import { companyService } from '../services/company'
 
@@ -123,6 +123,8 @@ function PrintOS() {
           .checklist input { display: inline-block; width: 12px; height: 12px; border: 1px solid #999; margin-right: 6px; }
           .page-break { page-break-after: always; }
           hr { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+          .img-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+          .img-grid img { width: calc(33.333% - 6px); max-height: 200px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
         </style>
       </head>
       <body>
@@ -132,14 +134,12 @@ function PrintOS() {
           var len = imgs.length;
           var loaded = 0;
           var printed = false;
-
           function triggerPrint() {
             if (printed) return;
             printed = true;
             window.onafterprint = function() { window.close(); };
             window.print();
           }
-
           if (len === 0) {
             triggerPrint();
           } else {
@@ -158,7 +158,6 @@ function PrintOS() {
                 });
               }
             });
-            // Fallback timeout in case loading gets stuck
             setTimeout(triggerPrint, 3000);
           }
         </script>
@@ -213,6 +212,8 @@ function PrintOS() {
           .bg-gray-50 { background: #f9fafb; }
           .bg-gray-100 { background: #f3f4f6; }
           hr { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+          .img-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+          .img-grid img { width: calc(33.333% - 6px); max-height: 200px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
         </style>
       </head>
       <body>
@@ -257,10 +258,15 @@ function PrintOS() {
   const totalQty = items.reduce((s, i) => s + i.quantity, 0)
   const totalValue = items.reduce((s, i) => s + Number(i.total_price || 0), 0)
   const avgPrice = totalQty > 0 ? (totalValue / totalQty) : 0
+  const images = order.production_order_images || []
 
   const orderUrl = `${window.location.origin}/orders/${order.id}`
 
   const cl = order.clients || {}
+  const cmp = company || {}
+
+  const paymentStatusColor = order.payment_status === 'pago' ? 'text-green-600' :
+    order.payment_status === 'entrada_parcial' ? 'text-yellow-600' : 'text-red-600'
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -286,22 +292,28 @@ function PrintOS() {
 
       <div className="max-w-[210mm] mx-auto bg-white shadow-lg my-8" style={{ minHeight: '297mm' }}>
         <div ref={printRef} className="p-[15mm_20mm]">
-          {/* === HEADER === */}
+          {/* === HEADER - COMPANY + OS === */}
           <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-gray-900">
             <div>
-          {company?.logo_url ? (
-            <img src={company.logo_url} alt="Logo" className="h-16 object-contain mb-1" />
-          ) : (
-            <div className="flex items-center gap-3 mb-1">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-                <span className="text-xl font-bold text-white">C</span>
+              {cmp.logo_url ? (
+                <img src={cmp.logo_url} alt="Logo" className="h-16 object-contain mb-1" />
+              ) : (
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+                    <span className="text-xl font-bold text-white">C</span>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-gray-900">{cmp.trade_name || cmp.company_name || 'CONFECÇÃO'}</div>
+                  </div>
+                </div>
+              )}
+              <div className="text-xs text-gray-500 leading-relaxed mt-1">
+                {cmp.company_name && <div>{cmp.company_name}</div>}
+                {cmp.cnpj && <div>CNPJ: {cmp.cnpj}</div>}
+                {cmp.phone && <div>Tel: {cmp.phone}</div>}
+                {cmp.address && <div>{cmp.address}{cmp.number ? `, ${cmp.number}` : ''}</div>}
+                {cmp.city && cmp.state && <div>{cmp.city} - {cmp.state}</div>}
               </div>
-              <div>
-                <div className="text-lg font-bold text-gray-900">{company?.trade_name || company?.company_name || 'CONFECÇÃO'}</div>
-              </div>
-            </div>
-          )}
-          <div className="text-xs text-gray-500">{company?.company_name || ''}</div>
             </div>
             <div className="text-right">
               <div className="text-xl font-bold text-gray-900">{order.order_number}</div>
@@ -318,7 +330,7 @@ function PrintOS() {
           {/* === CLIENTE === */}
           <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-4">
             <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dados do Cliente</div>
-            <div className="flex gap-8">
+            <div className="flex gap-8 flex-wrap">
               <div>
                 <div className="text-xs text-gray-500">Cliente</div>
                 <div className="text-sm font-bold">{cl.name || '---'}</div>
@@ -335,26 +347,30 @@ function PrintOS() {
                 <div className="text-xs text-gray-500">Cidade</div>
                 <div className="text-sm">{cl.city || '---'}</div>
               </div>
+              <div>
+                <div className="text-xs text-gray-500">Vendedor</div>
+                <div className="text-sm font-medium">{order.seller?.name || '---'}</div>
+              </div>
             </div>
           </div>
 
           {/* === DADOS DO PEDIDO === */}
           <div className="border border-gray-200 rounded-lg p-5 mb-5 bg-gray-50">
             <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 pb-2 border-b border-gray-200">Dados do Pedido</div>
-            <div className="flex gap-8">
-              <div className="flex-1">
+            <div className="flex gap-8 flex-wrap">
+              <div className="flex-1 min-w-[120px]">
                 <div className="text-xs text-gray-500 mb-1">Produto</div>
                 <div className="text-lg font-bold text-gray-900">{order.products?.name || '---'}</div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-[120px]">
                 <div className="text-xs text-gray-500 mb-1">Categoria</div>
                 <div className="text-lg font-bold text-gray-900">{order.products?.category || '---'}</div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-[120px]">
                 <div className="text-xs text-gray-500 mb-1">Quantidade Total</div>
                 <div className="text-lg font-bold text-gray-900">{totalQty} peças</div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-[120px]">
                 <div className="text-xs text-gray-500 mb-1">Prioridade</div>
                 <div className="text-lg font-bold text-gray-900">{priorityLabels[order.priority] || order.priority}</div>
               </div>
@@ -384,8 +400,8 @@ function PrintOS() {
                     <td className="border border-gray-300 p-2">{item.custom_name || '—'}</td>
                     <td className="border border-gray-300 p-2 text-center">{item.size || '—'}</td>
                     <td className="border border-gray-300 p-2 text-center font-medium">{item.quantity}</td>
-                    <td className="border border-gray-300 p-2 text-right">{Number(item.unit_price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                    <td className="border border-gray-300 p-2 text-right font-medium">{Number(item.total_price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td className="border border-gray-300 p-2 text-right">{formatCurrency(item.unit_price)}</td>
+                    <td className="border border-gray-300 p-2 text-right font-medium">{formatCurrency(item.total_price)}</td>
                   </tr>
                 )) : (
                   <tr>
@@ -434,11 +450,37 @@ function PrintOS() {
                   </tr>
                   <tr className="text-xs border-b border-gray-100">
                     <td className="py-1 text-gray-500">Valor Unitário Médio</td>
-                    <td className="py-1 text-right font-medium">{avgPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td className="py-1 text-right font-medium">{formatCurrency(avgPrice)}</td>
                   </tr>
+                  {order.payment_status && (
+                    <tr className="text-xs border-b border-gray-100">
+                      <td className="py-1 text-gray-500">Status Financeiro</td>
+                      <td className={`py-1 text-right font-medium ${paymentStatusColor}`}>
+                        {paymentStatusLabels[order.payment_status]}
+                      </td>
+                    </tr>
+                  )}
+                  {order.entry_amount > 0 && (
+                    <tr className="text-xs border-b border-gray-100">
+                      <td className="py-1 text-gray-500">Valor de Entrada</td>
+                      <td className="py-1 text-right font-medium text-green-600">{formatCurrency(order.entry_amount)}</td>
+                    </tr>
+                  )}
+                  {order.remaining_amount > 0 && (
+                    <tr className="text-xs border-b border-gray-100">
+                      <td className="py-1 text-gray-500">Saldo Restante</td>
+                      <td className="py-1 text-right font-medium text-red-600">{formatCurrency(order.remaining_amount)}</td>
+                    </tr>
+                  )}
+                  {order.payment_method && (
+                    <tr className="text-xs border-b border-gray-100">
+                      <td className="py-1 text-gray-500">Forma de Pagamento</td>
+                      <td className="py-1 text-right font-medium">{paymentMethodLabels[order.payment_method] || order.payment_method}</td>
+                    </tr>
+                  )}
                   <tr className="text-sm">
                     <td className="py-2 font-bold">Valor Total</td>
-                    <td className="py-2 text-right font-bold text-lg">{totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td className="py-2 text-right font-bold text-lg">{formatCurrency(totalValue)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -475,18 +517,26 @@ function PrintOS() {
             </div>
           </div>
 
-          {/* === IMAGEM DE REFERÊNCIA === */}
-          {order.reference_image_url && (
+          {order.financial_notes && (
+            <div className="border border-gray-200 rounded p-3 mb-4">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Observações Financeiras</div>
+              <p className="text-sm text-gray-700">{order.financial_notes}</p>
+            </div>
+          )}
+
+          {/* === IMAGENS === */}
+          {(images.length > 0 || order.reference_image_url) && (
             <>
               <div className="page-break" />
               <div className="mt-8 pt-4 border-t-2 border-gray-900">
-                <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Imagem de Referência</div>
-                <div className="flex justify-center">
-                  <img
-                    src={order.reference_image_url}
-                    alt="Referência de produção"
-                    className="max-w-full max-h-[600px] object-contain border border-gray-200 rounded"
-                  />
+                <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Imagens de Referência</div>
+                <div className="img-grid">
+                  {images.map(img => (
+                    <img key={img.id} src={img.image_url} alt="Referência" />
+                  ))}
+                  {order.reference_image_url && images.length === 0 && (
+                    <img src={order.reference_image_url} alt="Referência" />
+                  )}
                 </div>
               </div>
             </>
@@ -495,20 +545,20 @@ function PrintOS() {
           {/* === QR CODE + ASSINATURAS === */}
           <div className="flex items-end justify-between mt-8 pt-4 border-t border-gray-300">
             <div className="flex gap-8">
-          <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">Responsável</div>
-            <div className="text-xs font-medium text-gray-700 mb-1">{company?.responsible_name || '________________________'}</div>
-            <div className="text-xs text-gray-500">{company?.responsible_position || ''}</div>
-            <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
-          </div>
-          <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">Responsável Produção</div>
-            <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
-          </div>
-          <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">Cliente</div>
-            <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
-          </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Responsável</div>
+                <div className="text-xs font-medium text-gray-700 mb-1">{cmp.responsible_name || '________________________'}</div>
+                <div className="text-xs text-gray-500">{cmp.responsible_position || ''}</div>
+                <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Responsável Produção</div>
+                <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Cliente</div>
+                <div className="w-40 border-t border-gray-400 pt-1 mt-2" />
+              </div>
             </div>
             <div className="text-center">
               <QRCodeSVG url={orderUrl} />

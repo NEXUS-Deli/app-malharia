@@ -5,11 +5,13 @@ export const ordersService = {
   async list(filters = {}) {
     let query = supabase
       .from('production_orders')
-      .select('*, clients(name), products(name), production_order_stages(*)')
+      .select('*, clients(name), products(name), production_order_stages(*), seller:profiles!seller_id(name)')
 
     if (filters.status) query = query.eq('status', filters.status)
     if (filters.client_id) query = query.eq('client_id', filters.client_id)
     if (filters.priority) query = query.eq('priority', filters.priority)
+    if (filters.seller_id) query = query.eq('seller_id', filters.seller_id)
+    if (filters.payment_status) query = query.eq('payment_status', filters.payment_status)
 
     query = query.order('created_at', { ascending: false })
 
@@ -21,7 +23,7 @@ export const ordersService = {
   async getById(id) {
     const { data, error } = await supabase
       .from('production_orders')
-      .select('*, clients(*), products(*), production_order_stages(*, production_stages(*)), order_items(*)')
+      .select('*, clients(*), products(*), production_order_stages(*, production_stages(*)), order_items(*), production_order_images(*), seller:profiles!seller_id(name, email)')
       .eq('id', id)
       .single()
     if (error) throw error
@@ -30,9 +32,14 @@ export const ordersService = {
 
   async create(order, items = []) {
     const { data: { user } } = await supabase.auth.getUser()
+    const orderData = {
+      ...order,
+      created_by: user.id,
+      remaining_amount: (Number(order.total_price) || 0) - (Number(order.entry_amount) || 0),
+    }
     const { data, error } = await supabase
       .from('production_orders')
-      .insert({ ...order, created_by: user.id })
+      .insert(orderData)
       .select()
       .single()
     if (error) throw error
@@ -59,6 +66,8 @@ export const ordersService = {
       }
     }
 
+    await ordersService.addAudit(data.id, 'criacao', null, orderData, 'OS criada')
+
     notificationService.create({
       type: 'nova_os',
       title: `Nova OS criada: ${data.order_number}`,
@@ -70,7 +79,6 @@ export const ordersService = {
   },
 
   async createStages(orderId) {
-    const { data: { user } } = await supabase.auth.getUser()
     const { data: stages } = await supabase
       .from('production_stages')
       .select('*')
@@ -91,12 +99,48 @@ export const ordersService = {
     }
   },
 
-  async update(id, data) {
+  async update(id, data, changedFields = {}) {
+    const { data: { user } } = await supabase.auth.getUser()
+    const updateData = {
+      ...data,
+      edited_by: user.id,
+      edited_at: new Date().toISOString(),
+    }
+
+    if (data.total_price !== undefined || data.entry_amount !== undefined) {
+      const { data: current } = await supabase
+        .from('production_orders')
+        .select('total_price, entry_amount')
+        .eq('id', id)
+        .single()
+
+      const total = data.total_price !== undefined ? Number(data.total_price) : Number(current?.total_price || 0)
+      const entry = data.entry_amount !== undefined ? Number(data.entry_amount) : Number(current?.entry_amount || 0)
+      updateData.remaining_amount = total - entry
+    }
+
+    const { data: oldData } = await supabase
+      .from('production_orders')
+      .select('*')
+      .eq('id', id)
+      .single()
+
     const { error } = await supabase
       .from('production_orders')
-      .update(data)
+      .update(updateData)
       .eq('id', id)
     if (error) throw error
+
+    if (Object.keys(changedFields).length > 0) {
+      const descriptions = Object.entries(changedFields)
+        .map(([field, values]) => `${field}: ${values.old} → ${values.new}`)
+        .join(', ')
+      await ordersService.addAudit(id, 'edicao', oldData, updateData, descriptions)
+    } else {
+      await ordersService.addAudit(id, 'edicao', oldData, updateData, 'OS atualizada')
+    }
+
+    return updateData
   },
 
   async deleteItems(orderId) {
@@ -139,6 +183,7 @@ export const ordersService = {
     if (error) throw error
 
     await ordersService.addHistory(id, 'OS finalizada')
+    await ordersService.addAudit(id, 'finalizacao', { status: order?.status }, { status: 'finalizada' }, 'OS finalizada')
 
     notificationService.create({
       type: 'finalizada',
@@ -162,6 +207,7 @@ export const ordersService = {
     if (error) throw error
 
     await ordersService.addHistory(id, 'OS cancelada')
+    await ordersService.addAudit(id, 'cancelamento', null, { status: 'cancelada' }, 'OS cancelada')
   },
 
   async pause(id) {
@@ -349,6 +395,124 @@ export const ordersService = {
       .select('*, profiles(name)')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  // ─── AUDIT ────────────────────────────────────────────────
+
+  async addAudit(orderId, action, oldData, newData, description) {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from('production_order_audit')
+      .insert({
+        order_id: orderId,
+        user_id: user.id,
+        action,
+        old_data: oldData ? JSON.stringify(oldData) : null,
+        new_data: newData ? JSON.stringify(newData) : null,
+        description,
+      })
+    if (error) console.error('Erro ao adicionar auditoria:', error)
+  },
+
+  async getAudit(orderId) {
+    const { data, error } = await supabase
+      .from('production_order_audit')
+      .select('*, profiles(name)')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  // ─── IMAGES ───────────────────────────────────────────────
+
+  async uploadImage(orderId, file) {
+    const ext = file.name.split('.').pop()
+    const timestamp = Date.now()
+    const filePath = `${orderId}/${timestamp}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('order-images')
+      .upload(filePath, file, {
+        upsert: false,
+        contentType: file.type,
+      })
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('order-images')
+      .getPublicUrl(filePath)
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data: maxPos } = await supabase
+      .from('production_order_images')
+      .select('position')
+      .eq('order_id', orderId)
+      .order('position', { ascending: false })
+      .limit(1)
+
+    const nextPosition = maxPos && maxPos.length > 0 ? maxPos[0].position + 1 : 0
+
+    const { data, error } = await supabase
+      .from('production_order_images')
+      .insert({
+        order_id: orderId,
+        image_url: publicUrl,
+        file_path: filePath,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        position: nextPosition,
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async removeImage(imageId) {
+    const { data: image } = await supabase
+      .from('production_order_images')
+      .select('*')
+      .eq('id', imageId)
+      .single()
+
+    if (!image) return
+
+    if (image.file_path) {
+      await supabase.storage.from('order-images').remove([image.file_path])
+    }
+
+    const { error } = await supabase
+      .from('production_order_images')
+      .delete()
+      .eq('id', imageId)
+
+    if (error) throw error
+  },
+
+  async reorderImages(orderId, imageIds) {
+    for (let i = 0; i < imageIds.length; i++) {
+      await supabase
+        .from('production_order_images')
+        .update({ position: i })
+        .eq('id', imageIds[i])
+        .eq('order_id', orderId)
+    }
+  },
+
+  async getImages(orderId) {
+    const { data, error } = await supabase
+      .from('production_order_images')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('position', { ascending: true })
+
     if (error) throw error
     return data
   },

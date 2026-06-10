@@ -2,6 +2,15 @@ import { supabase } from '../lib/supabase'
 
 export const productionService = {
   async getOrdersByStage() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id, role')
+      .eq('id', user.id)
+      .single()
+
     const { data: stages } = await supabase
       .from('production_stages')
       .select('*')
@@ -11,13 +20,18 @@ export const productionService = {
 
     const result = []
     for (const stage of stages) {
-      const { data: orders } = await supabase
+      let query = supabase
         .from('production_orders')
         .select('*, clients(name), products(name), production_order_stages(*, production_stages(*))')
         .eq('current_stage', stage.name)
         .in('status', ['aberta', 'em_producao', 'pausada', 'finalizada', 'entregue'])
         .order('priority', { ascending: false })
 
+      if (profile && profile.role !== 'super_admin') {
+        query = query.eq('company_id', profile.company_id)
+      }
+
+      const { data: orders } = await query
       result.push({
         stage: stage,
         orders: orders || [],

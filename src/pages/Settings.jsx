@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, User, Settings as SettingsIcon, ChevronRight } from 'lucide-react'
+import { Building2, User, Settings as SettingsIcon, ChevronRight, Shield } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
 import { supabase } from '../lib/supabase'
+import { roleLabels, normalizeRole } from '../lib/utils'
 
 export function Settings() {
   const [profile, setProfile] = useState(null)
@@ -70,7 +72,12 @@ export function Settings() {
                 </div>
                 <div>
                   <p className="text-text-muted">Função</p>
-                  <p className="font-medium text-text-primary">{profile.role || '—'}</p>
+                  <p className="font-medium text-text-primary">
+                    <Badge variant="primary">
+                      <Shield size={12} className="mr-1" />
+                      {roleLabels[profile.role] || roleLabels[normalizeRole(profile.role)] || profile.role || '—'}
+                    </Badge>
+                  </p>
                 </div>
               </div>
             ) : (

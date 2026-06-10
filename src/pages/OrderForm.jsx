@@ -12,7 +12,8 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '../components/
 import { clientsService } from '../services/clients'
 import { productsService } from '../services/products'
 import { ordersService } from '../services/orders'
-import { referenceImageService } from '../services/referenceImage'
+import { authService } from '../services/auth'
+import { formatCurrency } from '../lib/utils'
 
 const defaultStages = ['Desenho', 'Impressão', 'Calandra', 'Corte', 'Costura', 'Acabamento']
 
@@ -20,30 +21,39 @@ export function OrderForm() {
   const navigate = useNavigate()
   const [clients, setClients] = useState([])
   const [products, setProducts] = useState([])
+  const [sellers, setSellers] = useState([])
   const [loading, setLoading] = useState(false)
   const [newClientOpen, setNewClientOpen] = useState(false)
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', whatsapp: '', email: '', city: '' })
   const [form, setForm] = useState({
     client_id: '',
     product_id: '',
-    unit_price: 0,
     entry_date: new Date().toISOString().split('T')[0],
     delivery_date: '',
     priority: 'normal',
     contact_person: '',
     phone: '',
     notes: '',
+    seller_id: '',
+    entry_amount: 0,
+    payment_method: '',
+    financial_notes: '',
   })
-  const [referenceFile, setReferenceFile] = useState(null)
-  const [referencePreview, setReferencePreview] = useState('')
   const [items, setItems] = useState([{ model: '', custom_name: '', size: '', quantity: 1, unit_price: 0 }])
+  const [imageFiles, setImageFiles] = useState([])
+  const [imagePreviews, setImagePreviews] = useState([])
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [c, p] = await Promise.all([clientsService.list(), productsService.list()])
+        const [c, p, s] = await Promise.all([
+          clientsService.list(),
+          productsService.list(),
+          authService.getUsersByRole(['vendedor', 'seller', 'gerente', 'manager', 'admin_empresa', 'admin']),
+        ])
         setClients(c)
         setProducts(p)
+        setSellers(s)
       } catch (err) {
         console.error(err)
       }
@@ -100,36 +110,54 @@ export function OrderForm() {
   const updateItem = (i, field, value) => {
     const updated = [...items]
     updated[i] = { ...updated[i], [field]: value }
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[i].total_price = (Number(updated[i].quantity) || 0) * (Number(updated[i].unit_price) || 0)
-    }
     setItems(updated)
   }
 
-  const handleReferenceFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setReferenceFile(file)
-    setReferencePreview(URL.createObjectURL(file))
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || [])
+    const validFiles = files.filter(f => {
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`Imagem ${f.name} excede 5MB`)
+        return false
+      }
+      const allowed = ['image/jpeg', 'image/png', 'image/webp']
+      if (!allowed.includes(f.type)) {
+        toast.error(`Formato não permitido: ${f.name}`)
+        return false
+      }
+      return true
+    })
+
+    const totalSlots = 5 - imageFiles.length
+    const toAdd = validFiles.slice(0, totalSlots)
+
+    if (toAdd.length < validFiles.length) {
+      toast.error('Máximo de 5 imagens por OS')
+    }
+
+    setImageFiles(prev => [...prev, ...toAdd])
+    setImagePreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
   }
 
-  const clearReferenceFile = () => {
-    setReferenceFile(null)
-    setReferencePreview('')
+  const removeImage = (index) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => {
+      URL.revokeObjectURL(prev[index])
+      return prev.filter((_, i) => i !== index)
+    })
   }
+
+  const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)
+  const totalPrice = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)
-      const totalPrice = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0)
-      const avgPrice = totalQty > 0 ? totalPrice / totalQty : 0
       const orderData = {
         client_id: form.client_id,
         product_id: form.product_id,
         quantity: totalQty,
-        unit_price: avgPrice,
         total_price: totalPrice,
         entry_date: form.entry_date,
         delivery_date: form.delivery_date,
@@ -137,14 +165,24 @@ export function OrderForm() {
         contact_person: form.contact_person,
         phone: form.phone,
         notes: form.notes,
+        seller_id: form.seller_id || null,
+        entry_amount: Number(form.entry_amount) || 0,
+        payment_method: form.payment_method || null,
+        financial_notes: form.financial_notes || null,
         order_number: await getNextOrderNumber(),
         current_stage: 'Desenho',
         status: 'aberta',
       }
       const created = await ordersService.create(orderData, items)
-      if (referenceFile) {
-        await referenceImageService.upload(created.id, referenceFile)
+
+      for (const file of imageFiles) {
+        try {
+          await ordersService.uploadImage(created.id, file)
+        } catch (err) {
+          console.error('Erro ao enviar imagem:', err)
+        }
       }
+
       navigate('/orders')
     } catch (err) {
       console.error(err)
@@ -195,28 +233,46 @@ export function OrderForm() {
                   </Button>
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                  <select
-                    className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    value={form.product_id}
-                    onChange={(e) => setForm({ ...form, product_id: e.target.value })}
-                    required
-                  >
+                <select
+                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  value={form.product_id}
+                  onChange={(e) => setForm({ ...form, product_id: e.target.value })}
+                  required
+                >
                   <option value="">Selecione um produto</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
+
+              <div className="space-y-2">
+                <Label>Vendedor Responsável</Label>
+                <select
+                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  value={form.seller_id}
+                  onChange={(e) => setForm({ ...form, seller_id: e.target.value })}
+                >
+                  <option value="">Selecione um vendedor</option>
+                  {sellers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Contato</Label>
                 <Input type="text" value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} placeholder="Nome do contato" />
               </div>
+
               <div className="space-y-2">
                 <Label>Telefone</Label>
                 <Input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(99) 99999-9999" />
               </div>
+
               <div className="space-y-2">
                 <Label>Prioridade</Label>
                 <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
@@ -226,13 +282,71 @@ export function OrderForm() {
                   <option value="urgente">Urgente</option>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>Data de Entrada</Label>
                 <Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} />
               </div>
+
               <div className="space-y-2">
                 <Label>Prazo de Entrega *</Label>
                 <Input type="date" value={form.delivery_date} onChange={(e) => setForm({ ...form, delivery_date: e.target.value })} required />
+              </div>
+            </div>
+
+            {/* Financial Section */}
+            <div className="border-t border-border pt-6">
+              <h3 className="text-base font-semibold text-text-primary mb-4">Informações Financeiras</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="space-y-2">
+                  <Label>Valor Total (itens)</Label>
+                  <div className="flex h-10 items-center rounded-xl border border-border bg-gray-50 px-4 text-sm font-bold text-text-primary">
+                    {formatCurrency(totalPrice)}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor de Entrada</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.entry_amount}
+                    onChange={(e) => setForm({ ...form, entry_amount: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Forma de Pagamento</Label>
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    value={form.payment_method}
+                    onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                  >
+                    <option value="">Selecione</option>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">Pix</option>
+                    <option value="cartao_credito">Cartão de Crédito</option>
+                    <option value="cartao_debito">Cartão de Débito</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="transferencia">Transferência</option>
+                    <option value="outros">Outros</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Saldo Restante</Label>
+                  <div className="flex h-10 items-center rounded-xl border border-border bg-gray-50 px-4 text-sm font-bold text-text-primary">
+                    {formatCurrency(Math.max(0, totalPrice - (Number(form.entry_amount) || 0)))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <Label>Observações Financeiras</Label>
+                <Textarea
+                  value={form.financial_notes}
+                  onChange={(e) => setForm({ ...form, financial_notes: e.target.value })}
+                  rows={2}
+                  placeholder="Observações sobre pagamento..."
+                />
               </div>
             </div>
 
@@ -305,7 +419,7 @@ export function OrderForm() {
                           />
                         </td>
                         <td className="py-2 px-2 text-right font-medium">
-                          {((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {formatCurrency((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
                         </td>
                         <td className="py-2 pl-2">
                           <button
@@ -323,11 +437,9 @@ export function OrderForm() {
                   <tfoot>
                     <tr className="border-t border-border font-medium">
                       <td colSpan={3} className="py-2 text-sm text-text-primary">Total</td>
-                      <td className="py-2 text-center text-sm">{items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)}</td>
+                      <td className="py-2 text-center text-sm">{totalQty}</td>
                       <td />
-                      <td className="py-2 text-right text-sm font-bold">
-                        {items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
+                      <td className="py-2 text-right text-sm font-bold">{formatCurrency(totalPrice)}</td>
                       <td />
                     </tr>
                   </tfoot>
@@ -336,34 +448,37 @@ export function OrderForm() {
             </div>
 
             <div className="space-y-2">
-              <Label>Observações</Label>
+              <Label>Observações de Produção</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
             </div>
 
+            {/* Multiple Images */}
             <div className="space-y-2">
-              <Label>Imagem de Referência</Label>
-              <p className="text-xs text-text-muted">Anexe uma imagem para auxiliar na produção (opcional)</p>
-              {referencePreview ? (
-                <div className="relative inline-block">
-                  <img src={referencePreview} alt="Preview" className="h-40 rounded-xl border border-border object-cover" />
-                  <button
-                    type="button"
-                    onClick={clearReferenceFile}
-                    className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow-sm cursor-pointer"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex items-center justify-center h-32 rounded-xl border-2 border-dashed border-border bg-gray-50 hover:border-primary/40 hover:bg-primary-bg/30 transition-all cursor-pointer">
-                  <div className="flex flex-col items-center gap-2 text-text-muted">
-                    <ImageUp size={24} />
-                    <span className="text-sm">Clique para selecionar imagem</span>
-                    <span className="text-xs">PNG, JPG ou SVG — até 5MB</span>
+              <Label>Imagens da OS</Label>
+              <p className="text-xs text-text-muted">Anexe até 5 imagens para referência (JPG, PNG, WEBP — até 5MB cada)</p>
+              <div className="flex flex-wrap gap-3">
+                {imagePreviews.map((preview, i) => (
+                  <div key={i} className="relative w-28 h-28 rounded-xl border border-border overflow-hidden bg-gray-50">
+                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow-sm cursor-pointer"
+                    >
+                      <X size={10} />
+                    </button>
                   </div>
-                  <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={handleReferenceFile} className="hidden" />
-                </label>
-              )}
+                ))}
+                {imageFiles.length < 5 && (
+                  <label className="flex items-center justify-center w-28 h-28 rounded-xl border-2 border-dashed border-border bg-gray-50 hover:border-primary/40 hover:bg-primary-bg/30 transition-all cursor-pointer">
+                    <div className="flex flex-col items-center gap-1 text-text-muted">
+                      <ImageUp size={20} />
+                      <span className="text-xs">Adicionar</span>
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} className="hidden" multiple />
+                  </label>
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl bg-primary-bg border border-primary/20 p-5">

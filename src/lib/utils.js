@@ -74,3 +74,58 @@ export const deadlineLabels = {
   warning: 'Próximo ao vencimento',
   normal: 'No prazo',
 }
+
+export const paymentStatusLabels = {
+  sem_entrada: 'Sem Entrada',
+  entrada_parcial: 'Entrada Parcial',
+  pago: 'Pago',
+  pendente: 'Pendente',
+}
+
+export const paymentStatusColors = {
+  sem_entrada: 'bg-gray-100 text-text-muted',
+  entrada_parcial: 'bg-warning-bg text-warning',
+  pago: 'bg-success-bg text-success',
+  pendente: 'bg-danger-bg text-danger',
+}
+
+export const paymentMethodLabels = {
+  dinheiro: 'Dinheiro',
+  pix: 'Pix',
+  cartao_credito: 'Cartão de Crédito',
+  cartao_debito: 'Cartão de Débito',
+  boleto: 'Boleto',
+  transferencia: 'Transferência',
+  outros: 'Outros',
+}
+
+export const roleLabels = {
+  super_admin: 'Super Admin',
+  admin_empresa: 'Admin',
+  admin: 'Admin',
+  gerente: 'Gerente',
+  manager: 'Gerente',
+  vendedor: 'Vendedor',
+  seller: 'Vendedor',
+  producao: 'Produção',
+  operator: 'Produção',
+  visualizador: 'Visualizador',
+  user: 'Visualizador',
+}
+
+export function normalizeRole(role) {
+  if (!role) return 'visualizador'
+  const map = {
+    admin: 'admin_empresa',
+    manager: 'gerente',
+    seller: 'vendedor',
+    operator: 'producao',
+    user: 'visualizador',
+  }
+  return map[role] || role
+}
+
+export function formatCurrency(value) {
+  if (value === null || value === undefined) return 'R$ 0,00'
+  return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
