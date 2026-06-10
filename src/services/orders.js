@@ -210,6 +210,23 @@ export const ordersService = {
     await ordersService.addAudit(id, 'cancelamento', null, { status: 'cancelada' }, 'OS cancelada')
   },
 
+  async reopen(id) {
+    const { data: order } = await supabase
+      .from('production_orders')
+      .select('order_number')
+      .eq('id', id)
+      .single()
+
+    const { error } = await supabase
+      .from('production_orders')
+      .update({ status: 'aberta' })
+      .eq('id', id)
+    if (error) throw error
+
+    await ordersService.addHistory(id, 'OS reaberta')
+    await ordersService.addAudit(id, 'reabertura', { status: 'cancelada' }, { status: 'aberta' }, 'OS reaberta')
+  },
+
   async pause(id) {
     const { data: order } = await supabase
       .from('production_orders')

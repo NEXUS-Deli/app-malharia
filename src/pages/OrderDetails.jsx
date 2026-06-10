@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle,
   Printer, PauseCircle, PlayCircle, Undo2, Edit3, Save, ImageUp, X, DollarSign, BadgeCheck,
-  CreditCard, History, GripVertical
+  CreditCard, History, GripVertical, RotateCcw
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
@@ -103,6 +103,11 @@ export function OrderDetails() {
   const handleCancel = () => {
     if (!confirm('Tem certeza que deseja cancelar esta OS?')) return
     doAction('cancel', () => ordersService.cancel(id), 'OS cancelada')
+  }
+
+  const handleReopen = () => {
+    if (!confirm('Reabrir esta OS? Ela voltará ao status "Aberta".')) return
+    doAction('reopen', () => ordersService.reopen(id), 'OS reaberta com sucesso!')
   }
 
   const handlePause = () => {
@@ -227,6 +232,7 @@ export function OrderDetails() {
   )
   const isActive = !['finalizada', 'cancelada', 'entregue'].includes(order.status)
   const isPaused = order.status === 'pausada'
+  const isCancelled = order.status === 'cancelada'
   const isFinished = ['finalizada', 'entregue'].includes(order.status)
 
   const items = order.order_items || []
@@ -297,6 +303,11 @@ export function OrderDetails() {
                 </>
               )}
             </>
+          )}
+          {isCancelled && (
+            <Button onClick={handleReopen} disabled={actionLoading === 'reopen'}>
+              <RotateCcw size={16} /> {actionLoading === 'reopen' ? 'Reabrindo...' : 'Reabrir'}
+            </Button>
           )}
         </div>
       </div>
