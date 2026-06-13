@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
+import { Pagination } from '../components/ui/pagination'
 import { supabase } from '../lib/supabase'
 import { authService, normalizeRole } from '../services/auth'
 import { roleLabels } from '../lib/utils'
@@ -86,6 +87,9 @@ export function UsersSettings() {
   const [showRoleInfo, setShowRoleInfo] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'visualizador' })
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSize = 20
 
   useEffect(() => {
     const load = async () => {
@@ -100,17 +104,20 @@ export function UsersSettings() {
       setProfile(prof)
 
       if (prof) {
-        const { data } = await supabase
+        const from = (page - 1) * pageSize
+        const to = from + pageSize - 1
+        const { data, error, count } = await supabase
           .from('profiles')
-          .select('id, name, email, role, status')
+          .select('id, name, email, role, status', { count: 'exact' })
           .eq('company_id', prof.company_id)
           .order('name')
-        setUsers(data || [])
+          .range(from, to)
+        if (!error) { setUsers(data || []); setTotal(count || 0) }
       }
       setLoading(false)
     }
     load()
-  }, [])
+  }, [page])
 
   const userRole = normalizeRole(profile?.role)
   const canManage = userRole === 'super_admin' || userRole === 'admin_empresa'
@@ -161,12 +168,7 @@ export function UsersSettings() {
       toast.success('Usuário criado com sucesso!')
       setShowForm(false)
       setForm({ name: '', email: '', password: '', role: 'visualizador' })
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, name, email, role, status')
-        .eq('company_id', profile.company_id)
-        .order('name')
-      setUsers(data || [])
+      setPage(1)
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -281,78 +283,81 @@ export function UsersSettings() {
           {users.length === 0 ? (
             <p className="text-sm text-text-muted py-8 text-center">Nenhum usuário encontrado</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Usuário</th>
-                    <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Email</th>
-                    <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Função</th>
-                    <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Status</th>
-                    {canManage && <th className="text-right text-xs font-medium text-text-muted pb-3">Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(u => (
-                    <tr key={u.id} className="border-b border-border-light hover:bg-gray-50/50 transition-colors">
-                      <td className="py-3 pr-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-bg text-primary text-sm font-semibold">
-                            {u.name?.charAt(0).toUpperCase() || '?'}
-                          </div>
-                          <span className="text-sm font-medium text-text-primary">{u.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-4 text-sm text-text-muted">{u.email}</td>
-                      <td className="py-3 pr-4">
-                        {canManage ? (
-                          <select
-                            value={u.role}
-                            onChange={e => handleRoleChange(u.id, e.target.value)}
-                            disabled={saving === u.id}
-                            className="text-xs rounded-lg border border-border bg-white px-2 py-1 outline-none focus:border-primary cursor-pointer"
-                          >
-                            {availableRoles.map(r => (
-                              <option key={r.value} value={r.value} disabled={r.value === 'admin_empresa' && profile?.id !== u.id}>{r.label}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <Badge variant="primary" className="text-xs">
-                            <Shield size={10} className="mr-1" />
-                            {roleLabels[u.role] || u.role}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                          u.status === 'ativo' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'ativo' ? 'bg-success' : 'bg-danger'}`} />
-                          {u.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      {canManage && (
-                        <td className="py-3 text-right">
-                          <button
-                            onClick={() => handleStatusToggle(u.id, u.status)}
-                            disabled={saving === u.id || profile?.id === u.id}
-                            className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                              u.status === 'ativo'
-                                ? 'text-danger hover:bg-danger-bg'
-                                : 'text-success hover:bg-success-bg'
-                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                            title={u.status === 'ativo' ? 'Desativar usuário' : 'Ativar usuário'}
-                          >
-                            {saving === u.id ? <Loader2 size={12} className="animate-spin" /> : u.status === 'ativo' ? <X size={12} /> : <Check size={12} />}
-                            {u.status === 'ativo' ? 'Desativar' : 'Ativar'}
-                          </button>
-                        </td>
-                      )}
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Usuário</th>
+                      <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Email</th>
+                      <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Função</th>
+                      <th className="text-left text-xs font-medium text-text-muted pb-3 pr-4">Status</th>
+                      {canManage && <th className="text-right text-xs font-medium text-text-muted pb-3">Ações</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} className="border-b border-border-light hover:bg-gray-50/50 transition-colors">
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-bg text-primary text-sm font-semibold">
+                              {u.name?.charAt(0).toUpperCase() || '?'}
+                            </div>
+                            <span className="text-sm font-medium text-text-primary">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4 text-sm text-text-muted">{u.email}</td>
+                        <td className="py-3 pr-4">
+                          {canManage ? (
+                            <select
+                              value={u.role}
+                              onChange={e => handleRoleChange(u.id, e.target.value)}
+                              disabled={saving === u.id}
+                              className="text-xs rounded-lg border border-border bg-white px-2 py-1 outline-none focus:border-primary cursor-pointer"
+                            >
+                              {availableRoles.map(r => (
+                                <option key={r.value} value={r.value} disabled={r.value === 'admin_empresa' && profile?.id !== u.id}>{r.label}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Badge variant="primary" className="text-xs">
+                              <Shield size={10} className="mr-1" />
+                              {roleLabels[u.role] || u.role}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.status === 'ativo' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'ativo' ? 'bg-success' : 'bg-danger'}`} />
+                            {u.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        {canManage && (
+                          <td className="py-3 text-right">
+                            <button
+                              onClick={() => handleStatusToggle(u.id, u.status)}
+                              disabled={saving === u.id || profile?.id === u.id}
+                              className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                                u.status === 'ativo'
+                                  ? 'text-danger hover:bg-danger-bg'
+                                  : 'text-success hover:bg-success-bg'
+                              } disabled:opacity-40 disabled:cursor-not-allowed`}
+                              title={u.status === 'ativo' ? 'Desativar usuário' : 'Ativar usuário'}
+                            >
+                              {saving === u.id ? <Loader2 size={12} className="animate-spin" /> : u.status === 'ativo' ? <X size={12} /> : <Check size={12} />}
+                              {u.status === 'ativo' ? 'Desativar' : 'Ativar'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+            </>
           )}
         </CardContent>
       </Card>

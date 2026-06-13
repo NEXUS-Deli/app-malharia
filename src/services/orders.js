@@ -13,31 +13,35 @@ async function getCurrentProfile() {
 
 export const ordersService = {
   async list(filters = {}) {
+    const { page = 1, pageSize = 25, ...rest } = filters
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
     let query = supabase
       .from('production_orders')
-      .select('*, clients(name), products(name), production_order_stages(*), seller:profiles!seller_id(name)')
+      .select('*, clients(name), products(name), production_order_stages(*), seller:profiles!seller_id(name)', { count: 'exact' })
 
-    if (filters.status) query = query.eq('status', filters.status)
-    if (filters.client_id) query = query.eq('client_id', filters.client_id)
-    if (filters.priority) query = query.eq('priority', filters.priority)
-    if (filters.seller_id) query = query.eq('seller_id', filters.seller_id)
-    if (filters.payment_status) query = query.eq('payment_status', filters.payment_status)
-    if (filters.budget_status) query = query.eq('budget_status', filters.budget_status)
-    if (filters.stage) query = query.eq('current_stage', filters.stage)
+    if (rest.status) query = query.eq('status', rest.status)
+    if (rest.client_id) query = query.eq('client_id', rest.client_id)
+    if (rest.priority) query = query.eq('priority', rest.priority)
+    if (rest.seller_id) query = query.eq('seller_id', rest.seller_id)
+    if (rest.payment_status) query = query.eq('payment_status', rest.payment_status)
+    if (rest.budget_status) query = query.eq('budget_status', rest.budget_status)
+    if (rest.stage) query = query.eq('current_stage', rest.stage)
 
-    if (filters.search) {
+    if (rest.search) {
       query = query.or(
-        `order_number.ilike.%${filters.search}%,` +
-        `clients.name.ilike.%${filters.search}%,` +
-        `products.name.ilike.%${filters.search}%`
+        `order_number.ilike.%${rest.search}%,` +
+        `clients.name.ilike.%${rest.search}%,` +
+        `products.name.ilike.%${rest.search}%`
       )
     }
 
-    query = query.order('created_at', { ascending: false })
+    query = query.order('created_at', { ascending: false }).range(from, to)
 
-    const { data, error } = await query
+    const { data, error, count } = await query
     if (error) throw error
-    return data
+    return { data: data || [], count: count || 0 }
   },
 
   async getById(id) {

@@ -8,25 +8,34 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '../components/
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { Avatar } from '../components/ui/avatar'
+import { Pagination } from '../components/ui/pagination'
 import { clientsService } from '../services/clients'
 
 export function Clients() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState(null)
   const [form, setForm] = useState({ name: '', phone: '', whatsapp: '', email: '', city: '', address: '', notes: '' })
+  const pageSize = 25
 
-  useEffect(() => { loadClients() }, [])
+  useEffect(() => { loadClients() }, [page, search])
 
   const loadClients = async () => {
-    try { setClients(await clientsService.list()) }
+    setLoading(true)
+    try {
+      const result = await clientsService.list({ page, pageSize, search })
+      setClients(result.data)
+      setTotal(result.count)
+    }
     catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
-  const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+
 
   const openCreate = () => { setEditingClient(null); setForm({ name: '', phone: '', whatsapp: '', email: '', city: '', address: '', notes: '' }); setModalOpen(true) }
   const openEdit = (client) => { setEditingClient(client); setForm({ name: client.name, phone: client.phone || '', whatsapp: client.whatsapp || '', email: client.email || '', city: client.city || '', address: client.address || '', notes: client.notes || '' }); setModalOpen(true) }
@@ -65,7 +74,7 @@ export function Clients() {
         <CardContent className="pt-6">
           <div className="relative mb-6">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-            <Input className="pl-11" placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-11" placeholder="Buscar cliente..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
           </div>
 
           {loading ? (
@@ -77,41 +86,44 @@ export function Clients() {
                 </svg>
               </div>
             </div>
-          ) : filtered.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Contato</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">WhatsApp</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cidade</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-light">
-                  {filtered.map((client) => (
-                    <tr key={client.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={client.name} size="sm" />
-                          <span className="font-medium text-text-primary">{client.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-text-secondary">{client.phone || '—'}</td>
-                      <td className="py-3 px-4 text-text-secondary">{client.whatsapp || '—'}</td>
-                      <td className="py-3 px-4 text-text-secondary">{client.city || '—'}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openEdit(client)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-primary transition-colors cursor-pointer"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(client.id)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
+          ) : clients.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Contato</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">WhatsApp</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cidade</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border-light">
+                    {clients.map((client) => (
+                      <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={client.name} size="sm" />
+                            <span className="font-medium text-text-primary">{client.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-text-secondary">{client.phone || '—'}</td>
+                        <td className="py-3 px-4 text-text-secondary">{client.whatsapp || '—'}</td>
+                        <td className="py-3 px-4 text-text-secondary">{client.city || '—'}</td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => openEdit(client)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-primary transition-colors cursor-pointer"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDelete(client.id)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="h-16 w-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">

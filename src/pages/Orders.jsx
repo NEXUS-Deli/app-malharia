@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Eye, ClipboardList, DollarSign, User as UserIcon, Search } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
+import { Pagination } from '../components/ui/pagination'
 import { StatusBadge, PriorityBadge } from '../components/ui/status-badge'
 import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
@@ -14,22 +15,27 @@ export function Orders() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [searchTimeout, setSearchTimeout] = useState(null)
   const navigate = useNavigate()
+  const pageSize = 25
 
   const loadOrders = useCallback(async () => {
+    setLoading(true)
     try {
-      const filters = {}
+      const filters = { page, pageSize }
       if (statusFilter) filters.status = statusFilter
       if (searchTerm) filters.search = searchTerm
-      const data = await ordersService.list(filters)
-      setOrders(data)
+      const result = await ordersService.list(filters)
+      setOrders(result.data)
+      setTotal(result.count)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, searchTerm])
+  }, [statusFilter, searchTerm, page])
 
   useEffect(() => {
     if (searchTimeout) clearTimeout(searchTimeout)
@@ -38,7 +44,7 @@ export function Orders() {
     }, 300)
     setSearchTimeout(timeout)
     return () => clearTimeout(timeout)
-  }, [statusFilter, searchTerm, loadOrders])
+  }, [statusFilter, searchTerm, page, loadOrders])
 
   const getDeadlineVariant = (deliveryDate) => {
     if (!deliveryDate) return 'default'
@@ -69,7 +75,7 @@ export function Orders() {
                 type="text"
                 placeholder="Buscar por cliente, OS, produto..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
                 className="pl-10"
               />
             </div>
@@ -78,7 +84,7 @@ export function Orders() {
               {['', 'aberta', 'em_producao', 'finalizada', 'entregue', 'cancelada'].map((s) => (
                 <button
                   key={s}
-                  onClick={() => setStatusFilter(s)}
+                  onClick={() => { setStatusFilter(s); setPage(1) }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     statusFilter === s
                       ? 'bg-primary text-white shadow-sm'
@@ -105,80 +111,83 @@ export function Orders() {
               </div>
             </div>
           ) : orders.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">OS</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Vendedor</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Valor</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Financeiro</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Orçamento</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Prazo</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Fase</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Status</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-light">
-                  {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-text-primary">{order.order_number}</td>
-                      <td className="py-3 px-4 text-text-secondary">{order.clients?.name || '—'}</td>
-                      <td className="py-3 px-4 text-text-secondary">{order.products?.name || '—'}</td>
-                      <td className="py-3 px-4">
-                        <span className="text-text-secondary text-xs flex items-center gap-1">
-                          <UserIcon size={12} className="text-text-muted" />
-                          {order.seller?.name || '—'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-text-secondary font-medium">
-                        {formatCurrency(order.total_price)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {order.payment_status ? (
-                          <Badge variant={
-                            order.payment_status === 'pago' ? 'success' :
-                            order.payment_status === 'entrada_parcial' ? 'warning' :
-                            order.payment_status === 'sem_entrada' ? 'danger' : 'default'
-                          }>
-                            {paymentStatusLabels[order.payment_status]}
-                          </Badge>
-                        ) : '—'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={
-                          order.budget_status === 'approved' ? 'success' :
-                          order.budget_status === 'rejected' ? 'danger' : 
-                          order.budget_status === 'pending' ? 'warning' : 'default'
-                        }>
-                          {budgetStatusLabels[order.budget_status] || '—'}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={getDeadlineVariant(order.delivery_date)}>
-                          {formatDate(order.delivery_date)}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-text-secondary">{order.current_stage || '—'}</span>
-                      </td>
-                      <td className="py-3 px-4"><StatusBadge status={order.status} /></td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                          className="inline-flex items-center gap-1 text-primary hover:text-primary-dark text-sm font-medium transition-colors cursor-pointer"
-                        >
-                          <Eye size={16} /> Detalhes
-                        </button>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">OS</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Cliente</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Vendedor</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Valor</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Financeiro</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Orçamento</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Prazo</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Fase</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Status</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border-light">
+                    {orders.map((order) => (
+                      <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4 font-medium text-text-primary">{order.order_number}</td>
+                        <td className="py-3 px-4 text-text-secondary">{order.clients?.name || '—'}</td>
+                        <td className="py-3 px-4 text-text-secondary">{order.products?.name || '—'}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-text-secondary text-xs flex items-center gap-1">
+                            <UserIcon size={12} className="text-text-muted" />
+                            {order.seller?.name || '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-text-secondary font-medium">
+                          {formatCurrency(order.total_price)}
+                        </td>
+                        <td className="py-3 px-4">
+                          {order.payment_status ? (
+                            <Badge variant={
+                              order.payment_status === 'pago' ? 'success' :
+                              order.payment_status === 'entrada_parcial' ? 'warning' :
+                              order.payment_status === 'sem_entrada' ? 'danger' : 'default'
+                            }>
+                              {paymentStatusLabels[order.payment_status]}
+                            </Badge>
+                          ) : '—'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={
+                            order.budget_status === 'approved' ? 'success' :
+                            order.budget_status === 'rejected' ? 'danger' : 
+                            order.budget_status === 'pending' ? 'warning' : 'default'
+                          }>
+                            {budgetStatusLabels[order.budget_status] || '—'}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={getDeadlineVariant(order.delivery_date)}>
+                            {formatDate(order.delivery_date)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-sm text-text-secondary">{order.current_stage || '—'}</span>
+                        </td>
+                        <td className="py-3 px-4"><StatusBadge status={order.status} /></td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                            className="inline-flex items-center gap-1 text-primary hover:text-primary-dark text-sm font-medium transition-colors cursor-pointer"
+                          >
+                            <Eye size={16} /> Detalhes
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="flex justify-center mb-4">

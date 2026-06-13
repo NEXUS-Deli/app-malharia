@@ -8,6 +8,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '../components/
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { Badge } from '../components/ui/badge'
+import { Pagination } from '../components/ui/pagination'
 import { productsService } from '../services/products'
 
 const categories = ['Camiseta', 'Uniforme', 'Moletom', 'Jaleco', 'Calça', 'Bermuda', 'Outro']
@@ -16,19 +17,25 @@ export function Products() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [form, setForm] = useState({ name: '', category: '', sku: '', description: '' })
+  const pageSize = 25
 
-  useEffect(() => { loadProducts() }, [])
+  useEffect(() => { loadProducts() }, [page, search])
 
   const loadProducts = async () => {
-    try { setProducts(await productsService.list()) }
+    setLoading(true)
+    try {
+      const result = await productsService.list({ page, pageSize, search })
+      setProducts(result.data)
+      setTotal(result.count)
+    }
     catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
-
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
 
   const openCreate = () => { setEditingProduct(null); setForm({ name: '', category: '', sku: '', description: '' }); setModalOpen(true) }
   const openEdit = (p) => { setEditingProduct(p); setForm({ name: p.name, category: p.category || '', sku: p.sku || '', description: p.description || '' }); setModalOpen(true) }
@@ -67,41 +74,44 @@ export function Products() {
         <CardContent className="pt-6">
           <div className="relative mb-6">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-            <Input className="pl-11" placeholder="Buscar produto..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-11" placeholder="Buscar produto..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
           </div>
 
           {loading ? (
             <div className="flex justify-center py-12"><div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center"><svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div></div>
-          ) : filtered.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Categoria</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">SKU</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Descrição</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-light">
-                  {filtered.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-text-primary">{product.name}</td>
-                      <td className="py-3 px-4">{product.category ? <Badge variant="primary">{product.category}</Badge> : '—'}</td>
-                      <td className="py-3 px-4 text-text-secondary"><code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{product.sku || '—'}</code></td>
-                      <td className="py-3 px-4 text-text-secondary max-w-xs truncate">{product.description || '—'}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openEdit(product)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-primary transition-colors cursor-pointer"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(product.id)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
+          ) : products.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Produto</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Categoria</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">SKU</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Descrição</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-text-muted uppercase tracking-wider">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border-light">
+                    {products.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4 font-medium text-text-primary">{product.name}</td>
+                        <td className="py-3 px-4">{product.category ? <Badge variant="primary">{product.category}</Badge> : '—'}</td>
+                        <td className="py-3 px-4 text-text-secondary"><code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{product.sku || '—'}</code></td>
+                        <td className="py-3 px-4 text-text-secondary max-w-xs truncate">{product.description || '—'}</td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => openEdit(product)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-primary transition-colors cursor-pointer"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDelete(product.id)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-danger transition-colors cursor-pointer"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={page} pageSize={pageSize} total={total} onChange={setPage} />
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="h-16 w-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4"><Package size={32} className="text-text-muted" /></div>

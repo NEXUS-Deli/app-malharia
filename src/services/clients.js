@@ -1,13 +1,17 @@
 import { supabase } from '../lib/supabase'
 
 export const clientsService = {
-  async list() {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('name')
+  async list({ page = 1, pageSize = 25, search = '' } = {}) {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    let query = supabase.from('clients').select('*', { count: 'exact' })
+    if (search) query = query.ilike('name', `%${search}%`)
+    query = query.order('name').range(from, to)
+
+    const { data, error, count } = await query
     if (error) throw error
-    return data
+    return { data: data || [], count: count || 0 }
   },
 
   async getById(id) {
