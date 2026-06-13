@@ -108,7 +108,7 @@ export function Header({ title, onMenuClick }) {
           {notifOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-xl border border-border bg-card-bg shadow-xl">
+              <div className="absolute right-0 sm:left-auto top-full mt-2 z-50 w-[calc(100vw-2rem)] sm:w-96 rounded-xl border border-border bg-card-bg shadow-xl">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <h3 className="text-sm font-semibold text-text-primary">Notificações</h3>
                   {unreadCount > 0 && (

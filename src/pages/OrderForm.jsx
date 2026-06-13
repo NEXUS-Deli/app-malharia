@@ -587,7 +587,7 @@ export function OrderForm() {
       <button
         type="button"
         onClick={addItem}
-        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary-dark hover:shadow-xl transition-all z-50 cursor-pointer"
+        className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary-dark hover:shadow-xl transition-all z-50 cursor-pointer"
         title="Adicionar item"
       >
         <Plus size={24} />
