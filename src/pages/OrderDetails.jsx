@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle,
@@ -283,6 +283,32 @@ export function OrderDetails() {
   const totalItems = items.reduce((s, i) => s + i.quantity, 0)
   const totalValue = items.reduce((s, i) => s + Number(i.total_price || 0), 0)
   const images = order.production_order_images || []
+  const [itemSort, setItemSort] = useState('')
+  const [groupBySize, setGroupBySize] = useState(false)
+
+  let displayItems = [...items]
+  if (itemSort === 'name') displayItems.sort((a, b) => (a.custom_name || '').localeCompare(b.custom_name || ''))
+  else if (itemSort === 'number') displayItems.sort((a, b) => (a.item_number || '').localeCompare(b.item_number || '', undefined, { numeric: true }))
+  else if (itemSort === 'size') {
+    const sizeOrder = ['PP', 'P', 'M', 'G', 'GG', 'XGG', 'EG', 'XG', 'XEG']
+    displayItems.sort((a, b) => {
+      const ia = sizeOrder.indexOf(a.size || '')
+      const ib = sizeOrder.indexOf(b.size || '')
+      if (ia !== -1 && ib !== -1) return ia - ib
+      if (ia !== -1) return -1
+      if (ib !== -1) return 1
+      return (a.size || '').localeCompare(b.size || '')
+    })
+  }
+
+  const groupedBySize = {}
+  if (groupBySize) {
+    displayItems.forEach(item => {
+      const size = item.size || 'Sem tamanho'
+      if (!groupedBySize[size]) groupedBySize[size] = []
+      groupedBySize[size].push(item)
+    })
+  }
 
   const budgetNotApproved = order.budget_status === 'pending' || order.budget_status === 'revision_requested'
   const canAdvanceFromBudget = order.budget_status === 'approved' || order.current_stage !== 'Aprovação de Orçamento'
@@ -730,6 +756,38 @@ export function OrderDetails() {
                   <CardTitle>Itens da OS</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <div className="flex items-center gap-1 text-xs text-text-muted mr-1">Ordenar:</div>
+                    {[
+                      { key: '', label: 'Padrão' },
+                      { key: 'name', label: 'A-Z' },
+                      { key: 'size', label: 'Tam' },
+                      { key: 'number', label: 'Nº' },
+                    ].map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setItemSort(opt.key)}
+                        className={`px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                          itemSort === opt.key
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    <div className="w-px h-4 bg-border mx-1" />
+                    <button
+                      onClick={() => setGroupBySize(!groupBySize)}
+                      className={`px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                        groupBySize
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
+                      }`}
+                    >
+                      Agrupar por tam
+                    </button>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -744,17 +802,36 @@ export function OrderDetails() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border-light">
-                        {items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="py-2 text-text-primary">{item.model}</td>
-                            <td className="py-2 text-text-secondary">{item.custom_name || '—'}</td>
-                            <td className="py-2 text-center text-text-secondary">{item.item_number || '—'}</td>
-                            <td className="py-2 text-center text-text-secondary">{item.size || '—'}</td>
-                            <td className="py-2 text-center font-medium">{item.quantity}</td>
-                            <td className="py-2 text-right text-text-secondary">{formatCurrency(item.unit_price)}</td>
-                            <td className="py-2 text-right font-medium">{formatCurrency(item.total_price)}</td>
-                          </tr>
-                        ))}
+                        {groupBySize
+                          ? Object.entries(groupedBySize).map(([size, sizeItems]) => (
+                              <Fragment key={size}>
+                                <tr className="bg-gray-50">
+                                  <td colSpan={7} className="py-1.5 px-2 text-xs font-semibold text-text-muted uppercase tracking-wider">{size}</td>
+                                </tr>
+                                {sizeItems.map(item => (
+                                  <tr key={item.id}>
+                                    <td className="py-2 text-text-primary">{item.model}</td>
+                                    <td className="py-2 text-text-secondary">{item.custom_name || '—'}</td>
+                                    <td className="py-2 text-center text-text-secondary">{item.item_number || '—'}</td>
+                                    <td className="py-2 text-center text-text-secondary">{item.size || '—'}</td>
+                                    <td className="py-2 text-center font-medium">{item.quantity}</td>
+                                    <td className="py-2 text-right text-text-secondary">{formatCurrency(item.unit_price)}</td>
+                                    <td className="py-2 text-right font-medium">{formatCurrency(item.total_price)}</td>
+                                  </tr>
+                                ))}
+                              </Fragment>
+                            ))
+                          : displayItems.map((item) => (
+                              <tr key={item.id}>
+                                <td className="py-2 text-text-primary">{item.model}</td>
+                                <td className="py-2 text-text-secondary">{item.custom_name || '—'}</td>
+                                <td className="py-2 text-center text-text-secondary">{item.item_number || '—'}</td>
+                                <td className="py-2 text-center text-text-secondary">{item.size || '—'}</td>
+                                <td className="py-2 text-center font-medium">{item.quantity}</td>
+                                <td className="py-2 text-right text-text-secondary">{formatCurrency(item.unit_price)}</td>
+                                <td className="py-2 text-right font-medium">{formatCurrency(item.total_price)}</td>
+                              </tr>
+                            ))}
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-border font-bold">
