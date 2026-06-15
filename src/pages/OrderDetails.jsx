@@ -44,6 +44,8 @@ export function OrderDetails() {
   const [sellers, setSellers] = useState([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [editForm, setEditForm] = useState({})
+  const [itemSort, setItemSort] = useState('')
+  const [groupBySize, setGroupBySize] = useState(false)
 
   const load = async () => {
     try {
@@ -283,8 +285,6 @@ export function OrderDetails() {
   const totalItems = items.reduce((s, i) => s + i.quantity, 0)
   const totalValue = items.reduce((s, i) => s + Number(i.total_price || 0), 0)
   const images = order.production_order_images || []
-  const [itemSort, setItemSort] = useState('')
-  const [groupBySize, setGroupBySize] = useState(false)
 
   let displayItems = [...items]
   if (itemSort === 'name') displayItems.sort((a, b) => (a.custom_name || '').localeCompare(b.custom_name || ''))
