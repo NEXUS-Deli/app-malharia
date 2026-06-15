@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserPlus, Shield, ChevronLeft, ChevronDown, ChevronUp, User, Mail, Key, Check, X, Loader2, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -89,35 +89,35 @@ export function UsersSettings() {
   const [creating, setCreating] = useState(false)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
   const pageSize = 20
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const fetchUsers = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-      const { data: prof } = await supabase
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('*, companies(name)')
+      .eq('id', user.id)
+      .single()
+    setProfile(prof)
+
+    if (prof) {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data, error, count } = await supabase
         .from('profiles')
-        .select('*, companies(name)')
-        .eq('id', user.id)
-        .single()
-      setProfile(prof)
-
-      if (prof) {
-        const from = (page - 1) * pageSize
-        const to = from + pageSize - 1
-        const { data, error, count } = await supabase
-          .from('profiles')
-          .select('id, name, email, role, status', { count: 'exact' })
-          .eq('company_id', prof.company_id)
-          .order('name')
-          .range(from, to)
-        if (!error) { setUsers(data || []); setTotal(count || 0) }
-      }
-      setLoading(false)
+        .select('id, name, email, role, status', { count: 'exact' })
+        .eq('company_id', prof.company_id)
+        .order('name')
+        .range(from, to)
+      if (!error) { setUsers(data || []); setTotal(count || 0) }
     }
-    load()
+    setLoading(false)
   }, [page])
+
+  useEffect(() => { fetchUsers() }, [fetchUsers, refreshKey])
 
   const userRole = normalizeRole(profile?.role)
   const canManage = userRole === 'super_admin' || userRole === 'admin_empresa'
@@ -169,6 +169,7 @@ export function UsersSettings() {
       setShowForm(false)
       setForm({ name: '', email: '', password: '', role: 'visualizador' })
       setPage(1)
+      setRefreshKey(k => k + 1)
     } catch (err) {
       toast.error(err.message)
     } finally {
