@@ -1,4 +1,4 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 CREATE OR REPLACE FUNCTION admin_create_user(
   p_email text,
@@ -58,18 +58,17 @@ BEGIN
     email_confirmed_at, confirmation_sent_at,
     raw_app_meta_data, raw_user_meta_data,
     aud, role, created_at, updated_at,
-    is_sso_user, is_anonymous, instance_id
+    is_sso_user, is_anonymous
   ) VALUES (
     v_user_id,
     p_email,
-    crypt(p_password, gen_salt('bf')),
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
     now(), now(),
     jsonb_build_object('provider', 'email', 'providers', ARRAY['email']),
     jsonb_build_object('name', p_name, 'role', p_role, 'company_id', v_caller_company_id::text),
     'authenticated', 'authenticated',
     now(), now(),
-    false, false,
-    '00000000-0000-0000-0000-000000000000'
+    false, false
   );
 
   v_result := jsonb_build_object(
