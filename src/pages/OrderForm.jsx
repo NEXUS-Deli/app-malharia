@@ -53,8 +53,8 @@ export function OrderForm() {
           authService.getUsersByRole(['vendedor', 'seller', 'gerente', 'manager', 'admin_empresa', 'admin']),
           authService.getCurrentUser().then(u => u ? authService.getProfile(u.id) : null),
         ])
-        setClients(c)
-        setProducts(p)
+        setClients(c.data)
+        setProducts(p.data)
         setSellers(s)
         setProfile(prof)
       } catch (err) {
@@ -94,7 +94,8 @@ export function OrderForm() {
   }
 
   const getNextOrderNumber = async () => {
-    const orders = await ordersService.list()
+    const result = await ordersService.list()
+    const orders = result.data || result
     const maxNum = orders.reduce((max, o) => {
       const match = o.order_number?.match(/OS-\d+-(\d+)/)
       const num = match ? parseInt(match[1]) : parseInt(o.order_number) || 0
