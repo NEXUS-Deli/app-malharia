@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle, XCircle, User, Calendar, Hash, Package, Clock, AlertCircle,
   Printer, PauseCircle, PlayCircle, Undo2, Edit3, Save, ImageUp, X, DollarSign,
-  CreditCard, History, RotateCcw, Link as LinkIcon, Shield, Copy, Percent
+  CreditCard, History, RotateCcw, Link as LinkIcon, Shield, Copy, Percent, Plus, Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
@@ -44,6 +44,7 @@ export function OrderDetails() {
   const [sellers, setSellers] = useState([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [editForm, setEditForm] = useState({})
+  const [editItems, setEditItems] = useState([])
   const [itemSort, setItemSort] = useState('')
   const [groupBySize, setGroupBySize] = useState(false)
 
@@ -93,6 +94,12 @@ export function OrderDetails() {
   }
 
   useEffect(() => { load() }, [id])
+
+  useEffect(() => {
+    if (editing && order) {
+      setEditItems((order.order_items || []).map(i => ({ ...i })))
+    }
+  }, [editing])
 
   const userRole = normalizeRole(profile?.role)
   const isAdmin = userRole === 'super_admin' || userRole === 'admin_empresa'
@@ -185,16 +192,20 @@ export function OrderDetails() {
         }
       })
 
-      if (updateData.total_price !== undefined || updateData.entry_amount !== undefined) {
-        const total = Number(updateData.total_price ?? order?.total_price ?? 0)
-        const entry = Number(updateData.entry_amount ?? order?.entry_amount ?? 0)
-        updateData.remaining_amount = total - entry
-        updateData.payment_status = entry <= 0 ? 'sem_entrada' : entry >= total ? 'pago' : 'entrada_parcial'
+      const itemsTotalQty = editItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0)
+      const itemsTotalValue = editItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0)
+      updateData.quantity = itemsTotalQty
+      updateData.total_price = itemsTotalValue
+
+      if (updateData.entry_amount !== undefined) {
+        updateData.remaining_amount = itemsTotalValue - Number(updateData.entry_amount ?? 0)
+        updateData.payment_status = Number(updateData.entry_amount) <= 0 ? 'sem_entrada' : Number(updateData.entry_amount) >= itemsTotalValue ? 'pago' : 'entrada_parcial'
+      } else {
+        updateData.remaining_amount = itemsTotalValue - Number(order?.entry_amount ?? 0)
       }
 
       if (updateData.commission_percentage !== undefined && isAdmin) {
-        const total = Number(updateData.total_price ?? order?.total_price ?? 0)
-        updateData.commission_value = (total * Number(updateData.commission_percentage)) / 100
+        updateData.commission_value = (itemsTotalValue * Number(updateData.commission_percentage)) / 100
       }
 
       if (!isAdmin) {
@@ -203,6 +214,13 @@ export function OrderDetails() {
       }
 
       await ordersService.update(id, updateData, changedFields)
+
+      const validItems = editItems.filter(i => i.model)
+      if (validItems.length > 0) {
+        await ordersService.deleteItems(id)
+        await ordersService.saveItems(id, validItems)
+      }
+
       toast.success('OS atualizada com sucesso!')
       setEditing(false)
       await load()
@@ -211,6 +229,21 @@ export function OrderDetails() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const addEditItem = () => {
+    setEditItems([...editItems, { model: '', custom_name: '', item_number: '', size: '', quantity: 1, unit_price: 0, notes: '' }])
+  }
+
+  const removeEditItem = (index) => {
+    if (editItems.length <= 1) return
+    setEditItems(editItems.filter((_, i) => i !== index))
+  }
+
+  const updateEditItem = (index, field, value) => {
+    const updated = [...editItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditItems(updated)
   }
 
   const handleImageUpload = async (e) => {
@@ -548,6 +581,89 @@ export function OrderDetails() {
                   rows={3}
                 />
               </div>
+
+              {/* Edit Items */}
+              <div className="border-t border-border pt-6">
+                <h3 className="text-base font-semibold text-text-primary mb-4">Itens da Produção</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs text-text-muted uppercase tracking-wider">
+                        <th className="text-left py-2 pr-2">Modelo</th>
+                        <th className="text-left py-2 px-2">Nome</th>
+                        <th className="text-center py-2 px-2 w-16">Nº</th>
+                        <th className="text-center py-2 px-2 w-16">Tam</th>
+                        <th className="text-center py-2 px-2 w-20">Qtd</th>
+                        <th className="text-right py-2 px-2 w-24">Valor Unit.</th>
+                        <th className="text-right py-2 px-2 w-24">V. Total</th>
+                        <th className="w-24 py-2 pl-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-light">
+                      {editItems.map((item, i) => (
+                        <tr key={i}>
+                          <td className="py-2 pr-2">
+                            <Input type="text" value={item.model}
+                              onChange={(e) => updateEditItem(i, 'model', e.target.value)} placeholder="Ex: Dry Fit" />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input type="text" value={item.custom_name || ''}
+                              onChange={(e) => updateEditItem(i, 'custom_name', e.target.value)} placeholder="Nome" />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input type="text" value={item.item_number || ''}
+                              onChange={(e) => updateEditItem(i, 'item_number', e.target.value)} placeholder="Nº" className="text-center" />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input type="text" value={item.size || ''}
+                              onChange={(e) => updateEditItem(i, 'size', e.target.value)} placeholder="Tam" className="text-center" />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input type="number" min="1" value={item.quantity}
+                              onChange={(e) => updateEditItem(i, 'quantity', parseInt(e.target.value) || 0)} className="text-center" />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input type="number" min="0" step="0.01" value={item.unit_price}
+                              onChange={(e) => updateEditItem(i, 'unit_price', parseFloat(e.target.value) || 0)} className="text-right" />
+                          </td>
+                          <td className="py-2 px-2 text-right font-medium text-xs">
+                            {formatCurrency((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
+                          </td>
+                          <td className="py-2 pl-2">
+                            <button type="button" onClick={() => removeEditItem(i)}
+                              className="text-danger hover:text-danger/80 cursor-pointer disabled:opacity-30"
+                              disabled={editItems.length <= 1}>
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tbody>
+                      <tr>
+                        <td colSpan={8} className="py-1">
+                          <button type="button" onClick={addEditItem}
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border-2 border-dashed border-border text-text-muted hover:border-primary hover:text-primary hover:bg-primary-bg/20 transition-all cursor-pointer text-sm">
+                            <Plus size={16} /> Adicionar Item
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border font-medium">
+                        <td colSpan={4} className="py-2 text-sm text-text-primary">Total</td>
+                        <td className="py-2 text-center text-sm">{editItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0)}</td>
+                        <td />
+                        <td className="py-2 text-right text-sm font-bold">
+                          {formatCurrency(editItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0))}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
                 <Button onClick={handleSaveEdit} disabled={saving}>
