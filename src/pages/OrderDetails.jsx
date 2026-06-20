@@ -98,7 +98,7 @@ export function OrderDetails() {
   const isAdmin = userRole === 'super_admin' || userRole === 'admin_empresa'
   const isProduction = userRole === 'producao'
   const isViewer = userRole === 'visualizador'
-  const canEdit = isAdmin || userRole === 'gerente' || userRole === 'vendedor'
+  const canEdit = isAdmin || userRole === 'gerente'
 
   const doAction = async (action, fn, successMsg) => {
     setActionLoading(action)
