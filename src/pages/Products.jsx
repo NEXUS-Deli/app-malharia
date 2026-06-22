@@ -24,8 +24,6 @@ export function Products() {
   const [form, setForm] = useState({ name: '', category: '', sku: '', description: '' })
   const pageSize = 25
 
-  useEffect(() => { loadProducts() }, [page, search])
-
   const loadProducts = async () => {
     setLoading(true)
     try {
@@ -36,6 +34,8 @@ export function Products() {
     catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
+
+  useEffect(() => { loadProducts() }, [page, search])
 
   const openCreate = () => { setEditingProduct(null); setForm({ name: '', category: '', sku: '', description: '' }); setModalOpen(true) }
   const openEdit = (p) => { setEditingProduct(p); setForm({ name: p.name, category: p.category || '', sku: p.sku || '', description: p.description || '' }); setModalOpen(true) }

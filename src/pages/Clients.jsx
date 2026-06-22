@@ -22,8 +22,6 @@ export function Clients() {
   const [form, setForm] = useState({ name: '', phone: '', whatsapp: '', email: '', city: '', address: '', notes: '' })
   const pageSize = 25
 
-  useEffect(() => { loadClients() }, [page, search])
-
   const loadClients = async () => {
     setLoading(true)
     try {
@@ -35,7 +33,7 @@ export function Clients() {
     finally { setLoading(false) }
   }
 
-
+  useEffect(() => { loadClients() }, [page, search])
 
   const openCreate = () => { setEditingClient(null); setForm({ name: '', phone: '', whatsapp: '', email: '', city: '', address: '', notes: '' }); setModalOpen(true) }
   const openEdit = (client) => { setEditingClient(client); setForm({ name: client.name, phone: client.phone || '', whatsapp: client.whatsapp || '', email: client.email || '', city: client.city || '', address: client.address || '', notes: client.notes || '' }); setModalOpen(true) }

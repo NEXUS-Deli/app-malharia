@@ -6,7 +6,9 @@ export const clientsService = {
     const to = from + pageSize - 1
 
     let query = supabase.from('clients').select('*', { count: 'exact' })
-    if (search) query = query.ilike('name', `%${search}%`)
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,whatsapp.ilike.%${search}%,email.ilike.%${search}%,city.ilike.%${search}%`)
+    }
     query = query.order('name').range(from, to)
 
     const { data, error, count } = await query

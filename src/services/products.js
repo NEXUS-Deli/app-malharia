@@ -6,7 +6,9 @@ export const productsService = {
     const to = from + pageSize - 1
 
     let query = supabase.from('products').select('*', { count: 'exact' })
-    if (search) query = query.ilike('name', `%${search}%`)
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,category.ilike.%${search}%`)
+    }
     query = query.order('name').range(from, to)
 
     const { data, error, count } = await query
