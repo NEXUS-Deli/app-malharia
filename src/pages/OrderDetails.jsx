@@ -213,6 +213,12 @@ export function OrderDetails() {
         delete updateData.commission_value
       }
 
+      const uuidFields = ['client_id', 'product_id', 'seller_id', 'created_by', 'edited_by', 'budget_approved_by']
+      uuidFields.forEach(f => { if (updateData[f] === '') updateData[f] = null })
+
+      const dateFields = ['delivery_date']
+      dateFields.forEach(f => { if (updateData[f] === '') updateData[f] = null })
+
       await ordersService.update(id, updateData, changedFields)
 
       const validItems = editItems.filter(i => i.model)

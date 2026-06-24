@@ -141,6 +141,11 @@ export const ordersService = {
       edited_at: new Date().toISOString(),
     }
 
+    // Sanitize empty strings to null (PostgreSQL rejects '' for UUID columns)
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === '') updateData[key] = null
+    })
+
     if (data.total_price !== undefined || data.entry_amount !== undefined) {
       const { data: current } = await supabase
         .from('production_orders')
