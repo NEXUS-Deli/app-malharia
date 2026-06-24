@@ -169,8 +169,8 @@ export function OrderForm() {
     setLoading(true)
     try {
       const orderData = {
-        client_id: form.client_id,
-        product_id: form.product_id,
+        client_id: form.client_id || null,
+        product_id: form.product_id || null,
         quantity: totalQty,
         total_price: totalPrice,
         estimated_value: Number(form.estimated_value) || 0,

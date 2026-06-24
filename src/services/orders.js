@@ -30,11 +30,25 @@ export const ordersService = {
     if (rest.stage) query = query.eq('current_stage', rest.stage)
 
     if (rest.search) {
-      query = query.or(
-        `order_number.ilike.%${rest.search}%,` +
-        `clients.name.ilike.%${rest.search}%,` +
-        `products.name.ilike.%${rest.search}%`
-      )
+      const conditions = [`order_number.ilike.%${rest.search}%`]
+
+      const { data: matchedClients } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', `%${rest.search}%`)
+      if (matchedClients?.length) {
+        matchedClients.forEach(c => conditions.push(`client_id.eq.${c.id}`))
+      }
+
+      const { data: matchedProducts } = await supabase
+        .from('products')
+        .select('id')
+        .ilike('name', `%${rest.search}%`)
+      if (matchedProducts?.length) {
+        matchedProducts.forEach(p => conditions.push(`product_id.eq.${p.id}`))
+      }
+
+      query = query.or(conditions.join(','))
     }
 
     query = query.order('created_at', { ascending: false }).range(from, to)
