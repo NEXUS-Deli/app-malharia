@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
+import { Combobox } from '../components/ui/combobox'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { StatusBadge, PriorityBadge } from '../components/ui/status-badge'
@@ -469,16 +470,14 @@ export function OrderDetails() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Vendedor</label>
-                  <select
-                    className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  <Combobox
+                    options={sellers.map(s => ({ value: s.id, label: s.name }))}
                     value={editForm.seller_id}
-                    onChange={(e) => setEditForm({ ...editForm, seller_id: e.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {sellers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setEditForm(prev => ({ ...prev, seller_id: v }))}
+                    placeholder="Selecione um vendedor"
+                    searchPlaceholder="Digite o nome..."
+                    emptyMessage="Nenhum vendedor encontrado"
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Prazo de Entrega</label>

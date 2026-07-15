@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { Combobox } from '../components/ui/combobox'
 import { Textarea } from '../components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Dialog, DialogHeader, DialogTitle, DialogContent } from '../components/ui/dialog'
@@ -237,17 +238,16 @@ export function OrderForm() {
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <div className="flex gap-2">
-                  <select
-                    className="flex h-10 flex-1 rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    value={form.client_id}
-                    onChange={(e) => handleClientChange(e.target.value)}
-                    required
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex-1">
+                    <Combobox
+                      options={clients.map(c => ({ value: c.id, label: `${c.name}${c.phone ? ` — ${c.phone}` : ''}` }))}
+                      value={form.client_id}
+                      onChange={(v) => handleClientChange(v)}
+                      placeholder="Selecione um cliente"
+                      searchPlaceholder="Digite o nome do cliente..."
+                      emptyMessage="Nenhum cliente encontrado"
+                    />
+                  </div>
                   <Button type="button" variant="outline" size="sm" onClick={() => setNewClientOpen(true)} className="shrink-0">
                     <UserPlus size={16} />
                   </Button>
@@ -256,31 +256,26 @@ export function OrderForm() {
 
               <div className="space-y-2">
                 <Label>Produto *</Label>
-                <select
-                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                <Combobox
+                  options={products.map(p => ({ value: p.id, label: p.name }))}
                   value={form.product_id}
-                  onChange={(e) => setForm({ ...form, product_id: e.target.value })}
-                  required
-                >
-                  <option value="">Selecione um produto</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm(prev => ({ ...prev, product_id: v }))}
+                  placeholder="Selecione um produto"
+                  searchPlaceholder="Digite o nome do produto..."
+                  emptyMessage="Nenhum produto encontrado"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Vendedor Responsável</Label>
-                <select
-                  className="flex h-10 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                <Combobox
+                  options={sellers.map(s => ({ value: s.id, label: s.name }))}
                   value={form.seller_id}
-                  onChange={(e) => setForm({ ...form, seller_id: e.target.value })}
-                >
-                  <option value="">Selecione um vendedor</option>
-                  {sellers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm(prev => ({ ...prev, seller_id: v }))}
+                  placeholder="Selecione um vendedor"
+                  searchPlaceholder="Digite o nome do vendedor..."
+                  emptyMessage="Nenhum vendedor encontrado"
+                />
               </div>
 
               <div className="space-y-2">
