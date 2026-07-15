@@ -49,12 +49,12 @@ export function OrderForm() {
     const load = async () => {
       try {
         const [c, p, s, prof] = await Promise.all([
-          clientsService.list(),
+          clientsService.listAll(),
           productsService.list(),
           authService.getUsersByRole(['vendedor', 'seller', 'gerente', 'manager', 'admin_empresa', 'admin']),
           authService.getCurrentUser().then(u => u ? authService.getProfile(u.id) : null),
         ])
-        setClients(c.data)
+        setClients(c)
         setProducts(p.data)
         setSellers(s)
         setProfile(prof)
@@ -83,8 +83,8 @@ export function OrderForm() {
     if (!newClientForm.name) return
     try {
       const created = await clientsService.create(newClientForm)
-      const updated = await clientsService.list()
-      setClients(updated.data)
+      const updated = await clientsService.listAll()
+      setClients(updated)
       handleClientChange(created.id, created)
       setNewClientOpen(false)
       setNewClientForm({ name: '', phone: '', whatsapp: '', email: '', city: '' })

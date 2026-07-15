@@ -56,6 +56,15 @@ export const clientsService = {
     if (error) throw error
   },
 
+  async listAll() {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name')
+    if (error) throw error
+    return data || []
+  },
+
   async search(query) {
     const { data, error } = await supabase
       .from('clients')
