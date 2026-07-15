@@ -153,6 +153,43 @@ export function OrderForm() {
     setImagePreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
   }
 
+  const handleFormKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      const tag = e.target.tagName
+      if (tag !== 'INPUT' && tag !== 'SELECT') return
+      if (e.target.closest('[role="combobox"]')) return
+
+      e.preventDefault()
+
+      const table = e.target.closest('table')
+      if (table) {
+        const row = e.target.closest('tr')
+        if (row) {
+          const inputs = row.querySelectorAll('input')
+          if (e.target === inputs[inputs.length - 1]) {
+            addItem()
+            setTimeout(() => {
+              const rows = table.querySelectorAll('tbody:first-of-type tr')
+              const lastRow = rows[rows.length - 1]
+              lastRow?.querySelector('input')?.focus()
+            }, 0)
+            return
+          }
+        }
+      }
+
+      const focusable = Array.from(
+        e.currentTarget.querySelectorAll(
+          'input:not([type="file"]):not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+        )
+      )
+      const idx = focusable.indexOf(e.target)
+      if (idx < focusable.length - 1) {
+        focusable[idx + 1].focus()
+      }
+    }
+  }
+
   const removeImage = (index) => {
     setImageFiles(prev => prev.filter((_, i) => i !== index))
     setImagePreviews(prev => {
@@ -233,7 +270,7 @@ export function OrderForm() {
           <CardTitle>Dados do Pedido</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               <div className="space-y-2">
                 <Label>Cliente *</Label>

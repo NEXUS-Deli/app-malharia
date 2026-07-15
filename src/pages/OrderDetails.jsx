@@ -289,6 +289,43 @@ export function OrderDetails() {
     }
   }
 
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      const tag = e.target.tagName
+      if (tag !== 'INPUT' && tag !== 'SELECT') return
+      if (e.target.closest('[role="combobox"]')) return
+
+      e.preventDefault()
+
+      const table = e.target.closest('table')
+      if (table) {
+        const row = e.target.closest('tr')
+        if (row) {
+          const inputs = row.querySelectorAll('input')
+          if (e.target === inputs[inputs.length - 1]) {
+            addEditItem()
+            setTimeout(() => {
+              const rows = table.querySelectorAll('tbody:first-of-type tr')
+              const lastRow = rows[rows.length - 1]
+              lastRow?.querySelector('input')?.focus()
+            }, 0)
+            return
+          }
+        }
+      }
+
+      const focusable = Array.from(
+        e.currentTarget.querySelectorAll(
+          'input:not([type="file"]):not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+        )
+      )
+      const idx = focusable.indexOf(e.target)
+      if (idx < focusable.length - 1) {
+        focusable[idx + 1].focus()
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -466,7 +503,7 @@ export function OrderDetails() {
             <CardTitle>Editando Ordem de Serviço</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-6" onKeyDown={handleEditKeyDown}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Vendedor</label>
