@@ -32,11 +32,25 @@ export const productionService = {
       }
 
       if (filters.search) {
-        query = query.or(
-          `order_number.ilike.%${filters.search}%,` +
-          `clients.name.ilike.%${filters.search}%,` +
-          `products.name.ilike.%${filters.search}%`
-        )
+        const conditions = [`order_number.ilike.%${filters.search}%`]
+
+        const { data: matchedClients } = await supabase
+          .from('clients')
+          .select('id')
+          .ilike('name', `%${filters.search}%`)
+        if (matchedClients?.length) {
+          matchedClients.forEach(c => conditions.push(`client_id.eq.${c.id}`))
+        }
+
+        const { data: matchedProducts } = await supabase
+          .from('products')
+          .select('id')
+          .ilike('name', `%${filters.search}%`)
+        if (matchedProducts?.length) {
+          matchedProducts.forEach(p => conditions.push(`product_id.eq.${p.id}`))
+        }
+
+        query = query.or(conditions.join(','))
       }
 
       const { data: orders } = await query

@@ -48,7 +48,7 @@ export function Clients() {
         await clientsService.create(form)
         toast.success('Cliente criado!')
       }
-      setModalOpen(false); loadClients()
+      setModalOpen(false); await loadClients()
     } catch (err) { toast.error(`Erro: ${err.message}`) }
   }
 

@@ -348,8 +348,11 @@ export const ordersService = {
       .filter(s => s.production_stages)
       .sort((a, b) => a.production_stages.position - b.production_stages.position)
 
+    if (stages.length === 0) throw new Error('Nenhuma fase encontrada para esta OS')
+
     const currentIndex = stages.findIndex(s => s.status === 'em_andamento')
-    if (currentIndex === -1) return
+    if (currentIndex === -1) throw new Error('Nenhuma fase em andamento')
+    if (currentIndex === stages.length - 1) throw new Error('OS já está na última fase')
 
     const currentStage = stages[currentIndex]
     const nextStage = stages[currentIndex + 1]

@@ -67,14 +67,14 @@ export function OrderForm() {
   const userRole = normalizeRole(profile?.role)
   const isAdmin = userRole === 'super_admin' || userRole === 'admin_empresa'
 
-  const handleClientChange = (clientId) => {
-    const client = clients.find(c => c.id === clientId)
-    setForm({
-      ...form,
+  const handleClientChange = (clientId, clientData) => {
+    const client = clientData || clients.find(c => c.id === clientId)
+    setForm(prev => ({
+      ...prev,
       client_id: clientId,
       contact_person: client ? client.name : '',
       phone: client ? (client.phone || client.whatsapp || '') : '',
-    })
+    }))
   }
 
   const handleCreateClient = async (e) => {
@@ -83,8 +83,8 @@ export function OrderForm() {
     try {
       const created = await clientsService.create(newClientForm)
       const updated = await clientsService.list()
-      setClients(updated)
-      handleClientChange(created.id)
+      setClients(updated.data)
+      handleClientChange(created.id, created)
       setNewClientOpen(false)
       setNewClientForm({ name: '', phone: '', whatsapp: '', email: '', city: '' })
       toast.success('Cliente criado!')
